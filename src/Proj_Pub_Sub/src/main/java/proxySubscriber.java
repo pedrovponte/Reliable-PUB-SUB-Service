@@ -5,24 +5,45 @@ import org.zeromq.ZMQ;
 import java.util.StringTokenizer;
 
 public class proxySubscriber {
-    public static void main(String[] args) {
+    private ZMQ.Socket subscriber;
+    private static int id;
+
+    public proxySubscriber(int idS) {
+        id = idS;
         try (ZContext context = new ZContext()) {
             // Socket to talk to server
             System.out.println("Collecting updates from weather server");
-            ZMQ.Socket subscriber = context.createSocket(SocketType.SUB);
-            subscriber.connect("tcp://*:5556");
-
-            subscriber.subscribe(args[0].getBytes());
-
-            int total_messages = 0;
-
-            while (total_messages < 100) {
-                // Use trim to remove the tailing '0' character
-                String string = subscriber.recvStr(0).trim();
-
-                System.out.println("Message: " + string);
-                total_messages++;
-            }
+            this.subscriber = context.createSocket(SocketType.XSUB); // or SUB
+            this.subscriber.connect("tcp://*:5556");
         }
+    }
+
+    // subscribe a topic
+    public void subscribe(String topic) {
+        // Construct subscribe message: "0x01 topic id"
+        String message = "0x01 " + topic + " " + id;
+        this.subscriber.send(message.getBytes(ZMQ.CHARSET));
+        System.out.println("Client " + id + " subscribed topic " + topic);
+    }
+
+    // unsubscribe a topic
+    public void unsubscribe(String topic) {
+        // Construct unsubscribe message "0x00 topic id"
+        String message = "0x00 " + topic + " " + id;
+        this.subscriber.send(message.getBytes(ZMQ.CHARSET));
+        System.out.println("Client " + id + " unsubscribed topic " + topic);
+    }
+
+    // to consume a message from a topic
+    public void get(String topic) {
+        // Construct get message "topic + id"
+        String message = topic + " " + id;
+        this.subscriber.send(message.getBytes(ZMQ.CHARSET));
+        byte[] resp = this.subscriber.recv();
+        System.out.println("Message for Client " + id + ": " + new String(resp));
+    }
+
+    public static void main(String[] args) {
+
     }
 }
