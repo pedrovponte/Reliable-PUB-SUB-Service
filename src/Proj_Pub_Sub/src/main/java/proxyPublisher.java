@@ -8,7 +8,7 @@ public class proxyPublisher {
 
     public proxyPublisher() {
         this.context = new ZContext();
-        this.publisher = this.context.createSocket(SocketType.PUB); // or PUB?
+        this.publisher = this.context.createSocket(SocketType.XPUB); // or PUB?
         System.out.println("Publisher Connecting to Proxy...");
         this.publisher.connect("tcp://*:5557");
     }
@@ -29,10 +29,6 @@ public class proxyPublisher {
 
         System.out.println("Message saved by proxy");
     }
-
-
-
-
 
     public static void main(String[] args) throws Exception {
         proxyPublisher publisher = new proxyPublisher();

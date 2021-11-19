@@ -7,15 +7,15 @@ import java.util.StringTokenizer;
 public class proxySubscriber {
     private ZMQ.Socket subscriber;
     private static int id;
+    private ZContext context;
 
     public proxySubscriber(int idS) {
         id = idS;
-        try (ZContext context = new ZContext()) {
-            // Socket to talk to server
-            System.out.println("Collecting updates from weather server");
-            this.subscriber = context.createSocket(SocketType.SUB); // or SUB
-            this.subscriber.connect("tcp://*:5556");
-        }
+        this.context = new ZContext();
+        // Socket to talk to server
+        this.subscriber = this.context.createSocket(SocketType.XSUB); // or SUB
+        System.out.println("Subscriber Connecting to Proxy...");
+        this.subscriber.connect("tcp://*:5556");
     }
 
     // subscribe a topic
@@ -26,6 +26,10 @@ public class proxySubscriber {
 
         byte[] response = this.subscriber.recv(); // "Subscribed + topic"
         String[] responseStr = new String(response).split(" ");
+
+        for(int i = 0; i < responseStr.length; i++) {
+            System.out.println("Message: " + responseStr[i]);
+        }
 
         if(responseStr[0].equals("Subscribed")) {
             if(responseStr[1].equals(topic)) {
@@ -75,6 +79,7 @@ public class proxySubscriber {
     }
 
     public static void main(String[] args) {
-
+        proxySubscriber subscriber = new proxySubscriber(1);
+        subscriber.subscribe("topicA");
     }
 }
