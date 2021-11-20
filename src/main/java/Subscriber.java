@@ -69,7 +69,7 @@ public class Subscriber implements SubscriberInterface {
     // to consume a message from a topic
     public void get(String topic) {
         // Construct get message "0x03 topic id"
-        String message = "0x03 " + topic + " " + id;
+        String message = "0x03//" + topic + "//" + id;
         this.subscriber.send(message.getBytes());
 
         byte[] response = this.subscriber.recv(); // "topic : message"
