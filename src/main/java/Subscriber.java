@@ -7,6 +7,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.ExportException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Arrays;
 import java.util.StringTokenizer;
 
 public class Subscriber implements SubscriberInterface {
@@ -25,13 +26,12 @@ public class Subscriber implements SubscriberInterface {
     // subscribe a topic
     public void subscribe(String topic) {
         // Construct subscribe message: "0x01 topic id"
-        String message = "0x01 " + topic + " " + id;
+        String message = "0x01//" + topic + "//" + id;
         this.subscriber.subscribe(message.getBytes());
 
-        byte[] response = this.subscriber.recv(); // "Subscribed + topic"
-        String[] responseStr = new String(response).split(" ");
-
-        for(int i = 0; i < responseStr.length; i++) {
+        String response = subscriber.recvStr();
+        System.out.println(response.split(message)[1]);
+        /*for(int i = 0; i < responseStr.length; i++) {
             System.out.println("Message: " + responseStr[i]);
         }
 
@@ -42,7 +42,7 @@ public class Subscriber implements SubscriberInterface {
         }
         else {
             System.out.println("Client " + id + "failed to subscribe topic " + topic);
-        }
+        }*/
     }
 
     // unsubscribe a topic
