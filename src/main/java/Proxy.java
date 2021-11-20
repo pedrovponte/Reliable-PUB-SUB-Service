@@ -1,8 +1,10 @@
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
+import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -46,13 +48,17 @@ public class Proxy {
             System.out.println("Running");
             this.poller.poll();
             if(this.poller.pollin(0)) {
-                byte[] message = this.frontend.recv();
-                handleFrontend(message);
+                //byte[] message = this.frontend.recv();
+                //handleFrontend(message);
             }
 
             if(this.poller.pollin(1)) {
-                byte[] message = this.backend.recv();
-                handleBackend(message);
+                ZFrame frame = ZFrame.recvFrame(backend);
+                byte[] msgData = frame.getData();
+                String msgString = new String(msgData, 1, msgData.length - 1, ZMQ.CHARSET);
+                String[] msg = msgString.split("//");
+                handleBackend(msg);
+                frame.destroy();
             }
         }
     }
@@ -82,20 +88,13 @@ public class Proxy {
         }
     }
 
-    public void handleBackend(byte[] message) {
-        System.out.println("BACKKKKKK");
-        String[] messageStr = new String(message).split(" ");
-
-        for(int i = 0; i < messageStr.length; i++) {
-            System.out.println("MessageStr[" + i + "]: " + messageStr[i]);
-        }
-
+    public void handleBackend(String[] message) {
         String toSend = "";
 
         // Subscribe message
-        if(messageStr[0].equals("0x01")) { // "0x01 topic id"
-            String topic = messageStr[1];
-            int id = Integer.parseInt(messageStr[2]);
+        if(message[0].equals("0x01")) { // "0x01 topic id"
+            String topic = message[1];
+            int id = Integer.parseInt(message[2]);
 
             if(this.topicNames.contains(topic)) {
                 this.topics.get(topic).addSubscriber(id);
@@ -106,13 +105,19 @@ public class Proxy {
                 this.topics.put(topic, newTopic);
                 this.topicNames.add(topic);
             }
-            toSend = "Subscribed " + topic;
+            toSend = "0x01//" + topic + "//" + id + "Topic " + topic + " has been successfully subscribed";
+
+            System.out.println("Subscriber " + id +  " successfully subscribed topic " + topic);
+
+            backend.send(toSend.getBytes());
+
+            return;
         }
 
         // Unsubscribe message
-        else if(messageStr[0].equals("0x00")) { // "0x00 topic id"
-            String topic = messageStr[1];
-            int id = Integer.parseInt(messageStr[2]);
+        else if(message[0].equals("0x00")) { // "0x00 topic id"
+            String topic = message[1];
+            int id = Integer.parseInt(message[2]);
 
             if(this.topicNames.contains(topic)) {
                 this.topics.get(topic).removeSubscriber(id);
@@ -123,9 +128,9 @@ public class Proxy {
         }
 
         // Get message
-        else if(messageStr[0].equals("0x02")) { // "0x02 topic id"
-            String topic = messageStr[1];
-            int id = Integer.parseInt(messageStr[2]);
+        else if(message[0].equals("0x02")) { // "0x02 topic id"
+            String topic = message[1];
+            int id = Integer.parseInt(message[2]);
 
             if(this.topicNames.contains(topic)) {
                 Topic topicObj = this.topics.get(topic);
@@ -138,6 +143,7 @@ public class Proxy {
 
         System.out.println("TO SEND: " + toSend);
         this.backend.send(toSend.getBytes());
+        this.frontend.subscribe(toSend.getBytes());
     }
 
     public static void main(String[] args) {
