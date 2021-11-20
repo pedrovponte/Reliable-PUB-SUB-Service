@@ -26,7 +26,6 @@ public class TestApp {
                 publisher.put(topic, msg);
                 break;
             case "subscribe":
-                System.out.println(reg);
                 // subscribe <id> <topic>
                 topic = args[2];
                 SubscriberInterface subscriber = (SubscriberInterface) reg.lookup("Sub" + id);

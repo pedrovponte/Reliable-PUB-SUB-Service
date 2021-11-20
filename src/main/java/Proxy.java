@@ -20,8 +20,9 @@ public class Proxy {
     public Proxy() {
         // Prepare our context and sockets
         this.context = new ZContext();
-        this.frontend = context.createSocket(SocketType.XSUB);
+        this.frontend = context.createSocket(SocketType.SUB);
         this.frontend.bind("tcp://localhost:5557"); // 5556? conecta-se ao pub ou sub?
+        this.frontend.subscribe(ZMQ.SUBSCRIPTION_ALL);
 
         this.backend = context.createSocket(SocketType.XPUB);
         this.backend.bind("tcp://localhost:5556"); // 5557? conecta-se ao pub ou sub?
@@ -44,15 +45,12 @@ public class Proxy {
         while(!Thread.currentThread().isInterrupted()) {
             System.out.println("Running");
             this.poller.poll();
-            System.out.println("recebi algo");
             if(this.poller.pollin(0)) {
-                System.out.println("FIRSTTT");
                 byte[] message = this.frontend.recv();
                 handleFrontend(message);
             }
 
             if(this.poller.pollin(1)) {
-                System.out.println("SECONDDDD");
                 byte[] message = this.backend.recv();
                 handleBackend(message);
             }
@@ -60,7 +58,6 @@ public class Proxy {
     }
 
     public void handleFrontend(byte[] message) {
-        System.out.println("FRONTTTTT");
         String[] messageStr = new String(message).split(" ");
 
         for(int i = 0; i < messageStr.length; i++) {
@@ -81,7 +78,7 @@ public class Proxy {
                 this.topicNames.add(topic);
             }
 
-            this.frontend.send("Published");
+            this.backend.send("Published".getBytes());
         }
     }
 

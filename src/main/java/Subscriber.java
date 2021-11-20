@@ -17,7 +17,7 @@ public class Subscriber implements SubscriberInterface {
     public Subscriber(int idS) {
         id = idS;
         this.context = new ZContext();
-        subscriber = context.createSocket(SocketType.XSUB);
+        subscriber = context.createSocket(SocketType.SUB);
         System.out.println("Subscriber Connecting to Proxy...");
         subscriber.connect("tcp://*:5556");
     }
@@ -26,7 +26,7 @@ public class Subscriber implements SubscriberInterface {
     public void subscribe(String topic) {
         // Construct subscribe message: "0x01 topic id"
         String message = "0x01 " + topic + " " + id;
-        this.subscriber.send(message.getBytes());
+        this.subscriber.subscribe(message.getBytes());
 
         byte[] response = this.subscriber.recv(); // "Subscribed + topic"
         String[] responseStr = new String(response).split(" ");

@@ -7,6 +7,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.ExportException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Arrays;
 
 public class Publisher implements PublisherInterface {
     private ZMQ.Socket publisher;
@@ -27,6 +28,7 @@ public class Publisher implements PublisherInterface {
 
         byte[] confirmation = this.publisher.recv();
         String confirmation_str = new String(confirmation);
+        System.out.println(Arrays.toString(confirmation));
 
         if(!confirmation_str.equals("Published")) {
             System.out.println("Message not received by proxy");
