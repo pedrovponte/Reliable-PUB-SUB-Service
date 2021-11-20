@@ -25,12 +25,13 @@ public class Subscriber implements SubscriberInterface {
 
     // subscribe a topic
     public void subscribe(String topic) {
-        // Construct subscribe message: "0x01 topic id"
+        // Construct subscribe message: "0x01//topic//id"
         String message = "0x01//" + topic + "//" + id;
         this.subscriber.subscribe(message.getBytes());
 
-        String response = subscriber.recvStr();
+        String response = this.subscriber.recvStr();
         System.out.println(response.split(message)[1]);
+
         /*for(int i = 0; i < responseStr.length; i++) {
             System.out.println("Message: " + responseStr[i]);
         }
@@ -47,27 +48,28 @@ public class Subscriber implements SubscriberInterface {
 
     // unsubscribe a topic
     public void unsubscribe(String topic) {
-        // Construct unsubscribe message "0x00 topic id"
-        String message = "0x00 " + topic + " " + id;
-        this.subscriber.send(message.getBytes());
+        // Construct unsubscribe message "0x00//topic//id"
+        String message = "0x00//" + topic + "//" + id;
+        System.out.println("MESSAGE: " + message);
+        this.subscriber.unsubscribe(message.getBytes());
 
-        byte[] response = this.subscriber.recv(); // "Unsubscribed + topic"
-        String[] responseStr = new String(response).split(" ");
+        String response = this.subscriber.recvStr();
+        System.out.println(response.split(message)[1]);
 
-        if(responseStr[0].equals("Unsubscribed")) {
-            if(responseStr[1].equals(topic)) {
-                System.out.println("Client " + id + " unsubscribed topic " + topic);
-            }
-        }
-        else {
-            System.out.println("Client " + id + " failed to unsubscribe topic " + topic);
-        }
+//        if(responseStr[0].equals("Unsubscribed")) {
+//            if(responseStr[1].equals(topic)) {
+//                System.out.println("Client " + id + " unsubscribed topic " + topic);
+//            }
+//        }
+//        else {
+//            System.out.println("Client " + id + " failed to unsubscribe topic " + topic);
+//        }
     }
 
     // to consume a message from a topic
     public void get(String topic) {
-        // Construct get message "0x02 topic id"
-        String message = "0x02 " + topic + " " + id;
+        // Construct get message "0x03 topic id"
+        String message = "0x03 " + topic + " " + id;
         this.subscriber.send(message.getBytes());
 
         byte[] response = this.subscriber.recv(); // "topic : message"

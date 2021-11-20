@@ -21,21 +21,10 @@ public class Publisher implements PublisherInterface {
     }
 
     public void put(String topic, String message) {
-        // Send message in format "0x03 topic : message"
-        String to_send = "0x03 " + topic + " : " + message;
+        // Send message in format "0x02//topic//message"
+        String to_send = "0x02//" + topic + "//" + message;
         this.publisher.send(to_send.getBytes());
         System.out.println("Message Sent: " + to_send);
-
-        byte[] confirmation = this.publisher.recv();
-        String confirmation_str = new String(confirmation);
-        System.out.println(Arrays.toString(confirmation));
-
-        if(!confirmation_str.equals("Published")) {
-            System.out.println("Message not received by proxy");
-            return;
-        }
-
-        System.out.println("Message saved by proxy");
     }
 
     public static void main(String[] args) throws Exception {

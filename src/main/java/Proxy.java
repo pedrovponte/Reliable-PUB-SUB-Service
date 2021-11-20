@@ -48,12 +48,18 @@ public class Proxy {
             System.out.println("Running");
             this.poller.poll();
             if(this.poller.pollin(0)) {
-                //byte[] message = this.frontend.recv();
-                //handleFrontend(message);
+                System.out.println("INSIDE POLLER FRONTEND");
+                ZFrame frame = ZFrame.recvFrame(this.frontend);
+                byte[] msgData = frame.getData();
+                String msgString = new String(msgData, 0, msgData.length - 1, ZMQ.CHARSET);
+                String[] msg = msgString.split("//");
+                handleFrontend(msg);
+                frame.destroy();
             }
 
             if(this.poller.pollin(1)) {
-                ZFrame frame = ZFrame.recvFrame(backend);
+                System.out.println("INSIDE POLLER BACKEND");
+                ZFrame frame = ZFrame.recvFrame(this.backend);
                 byte[] msgData = frame.getData();
                 String msgString = new String(msgData, 1, msgData.length - 1, ZMQ.CHARSET);
                 String[] msg = msgString.split("//");
@@ -63,16 +69,14 @@ public class Proxy {
         }
     }
 
-    public void handleFrontend(byte[] message) {
-        String[] messageStr = new String(message).split(" ");
-
-        for(int i = 0; i < messageStr.length; i++) {
-            System.out.println("MessageStr[" + i + "]: " + messageStr[i]);
+    public void handleFrontend(String[] message) {
+        for(int i = 0; i < message.length; i++) {
+            System.out.println("Message[" + i + "]: " + message[i]);
         }
 
-        if(messageStr[0].equals("0x03")) { //"0x03 topic : message"
-            String topic = messageStr[1];
-            String messageT = messageStr[3];
+        if(message[0].equals("0x02")) { // "0x02//topic//message"
+            String topic = message[1];
+            String messageT = message[2];
 
             if(this.topicNames.contains(topic)) {
                 this.topics.get(topic).addMessage(messageT);
@@ -83,8 +87,6 @@ public class Proxy {
                 this.topics.put(topic, newTopic);
                 this.topicNames.add(topic);
             }
-
-            this.backend.send("Published".getBytes());
         }
     }
 
@@ -92,7 +94,7 @@ public class Proxy {
         String toSend = "";
 
         // Subscribe message
-        if(message[0].equals("0x01")) { // "0x01 topic id"
+        if(message[0].equals("0x01")) { // "0x01//topic//id"
             String topic = message[1];
             int id = Integer.parseInt(message[2]);
 
@@ -109,13 +111,16 @@ public class Proxy {
 
             System.out.println("Subscriber " + id +  " successfully subscribed topic " + topic);
 
-            backend.send(toSend.getBytes());
+            System.out.println("Topics: " + this.topics);
+            System.out.println("Topics: " + this.topicNames);
 
-            return;
+            // backend.send(toSend.getBytes());
+
+            // return;
         }
 
         // Unsubscribe message
-        else if(message[0].equals("0x00")) { // "0x00 topic id"
+        else if(message[0].equals("0x00")) { // "0x00//topic//id"
             String topic = message[1];
             int id = Integer.parseInt(message[2]);
 
@@ -124,11 +129,13 @@ public class Proxy {
 
                 // necessario apagar o topico das listas caso fique sem nenhum subscritor?
             }
-            toSend = "Unsubscribed " + topic;
+            toSend = "0x00//" + topic + "//" + id + "Topic " + topic + " has been successfully unsubscribed";
+
+            System.out.println("Subscriber " + id +  " unsuccessfully subscribed topic " + topic);
         }
 
         // Get message
-        else if(message[0].equals("0x02")) { // "0x02 topic id"
+        else if(message[0].equals("0x03")) { // "0x03 topic id"
             String topic = message[1];
             int id = Integer.parseInt(message[2]);
 
@@ -143,7 +150,7 @@ public class Proxy {
 
         System.out.println("TO SEND: " + toSend);
         this.backend.send(toSend.getBytes());
-        this.frontend.subscribe(toSend.getBytes());
+        // this.frontend.subscribe(toSend.getBytes());
     }
 
     public static void main(String[] args) {

@@ -25,6 +25,7 @@ public class Topic {
         this.subscribers.add(id);
         this.subsLastMessage.put(id, this.messageId);
         this.subsLastMessageIds.add(this.messageId);
+        System.out.println("Subscribers: " + subscribers);
     }
 
     public void removeSubscriber(int id) {
@@ -36,12 +37,17 @@ public class Topic {
         int messageIdSub = this.subsLastMessage.get(id);
         this.subsLastMessage.remove(Integer.valueOf(id));
         this.subsLastMessageIds.remove(messageIdSub);
+
+        System.out.println("Subscribers: " + subscribers);
     }
 
     public void addMessage(String message) {
         this.messages.put(this.messageId, message);
         this.messagesIds.add(this.messageId);
         this.messageId++;
+
+        System.out.println("MESSAGES: " + this.messages);
+        System.out.println("MESSAGES IDS: " + this.messagesIds);
     }
 
     public int removeMessage() {

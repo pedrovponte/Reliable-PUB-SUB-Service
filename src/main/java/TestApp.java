@@ -16,20 +16,25 @@ public class TestApp {
         String topic = "";
         Registry reg = LocateRegistry.getRegistry("localhost");
         String id = args[1];
+        PublisherInterface publisher = (PublisherInterface) reg.lookup("Pub" + id);
+        SubscriberInterface subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
 
         switch (args[0].toLowerCase()) {
             case "put":
                 // put <topic> <message>
                 topic = args[2];
                 String msg = args[3];
-                PublisherInterface publisher = (PublisherInterface) reg.lookup("Pub" + id);
                 publisher.put(topic, msg);
                 break;
             case "subscribe":
                 // subscribe <id> <topic>
                 topic = args[2];
-                SubscriberInterface subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
                 subscriber.subscribe(topic);
+                break;
+            case "unsubscribe":
+                // unsubscribe <id> <topic>
+                topic = args[2];
+                subscriber.unsubscribe(topic);
                 break;
             default:
                 throw new IllegalArgumentException("Illegal argument" + args[1]);
