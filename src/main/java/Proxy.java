@@ -13,6 +13,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 public class Proxy {
     private ZMQ.Socket frontend;
     private ZMQ.Socket backend;
+    private ZMQ.Socket getSocket;
     private ConcurrentHashMap<String, Topic> topics; // key -> topicName; value -> Topic
     private ArrayList<String> topicNames; // array with topic names
     private ScheduledThreadPoolExecutor exec;
@@ -23,7 +24,7 @@ public class Proxy {
         exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
 
         // Prepare our context and sockets
-        this.context = new ZContext();
+        context = new ZContext();
         this.frontend = context.createSocket(SocketType.SUB);
         this.frontend.bind("tcp://localhost:5557"); // 5556? conecta-se ao pub ou sub?
         this.frontend.subscribe(ZMQ.SUBSCRIPTION_ALL);
@@ -31,37 +32,20 @@ public class Proxy {
         this.backend = context.createSocket(SocketType.XPUB);
         this.backend.bind("tcp://localhost:5556"); // 5557? conecta-se ao pub ou sub?
 
+        this.getSocket = context.createSocket(SocketType.REP);
+        this.getSocket.bind("tcp://localhost:5555"); // 5557? conecta-se ao pub ou sub?
+
         //  Initialize poll set
         this.poller = context.createPoller(2);
         this.poller.register(this.frontend, ZMQ.Poller.POLLIN);
         this.poller.register(this.backend, ZMQ.Poller.POLLIN);
+        this.poller.register(this.getSocket, ZMQ.Poller.POLLIN);
 
         this.topics = new ConcurrentHashMap<>();
         this.topicNames = new ArrayList<>();
 
-        exec.execute(new Thread(Proxy::rcvGets));
-
         // Run the proxy until the user interrupts us
         // ZMQ.proxy(this.frontend, this.backend, null);
-    }
-
-    public static void rcvGets() {
-        ZMQ.Socket getSocket = context.createSocket(SocketType.REP);
-        getSocket.connect("tcp://localhost:5555");
-
-        while (!Thread.currentThread().isInterrupted()) {
-            // Block until a message is received
-            byte[] reply = getSocket.recv(0);
-
-            // Print the message
-            System.out.println(
-                    "Received: [" + new String(reply, ZMQ.CHARSET) + "]"
-            );
-
-            // Send a response
-            String response = "meter get aqui";
-            getSocket.send(response.getBytes(ZMQ.CHARSET), 0);
-        }
     }
 
     public void run() {
@@ -84,6 +68,20 @@ public class Proxy {
                 byte[] msgData = frame.getData();
                 handleBackend(msgData);
                 frame.destroy();
+            }
+
+            if(this.poller.pollin(2)) {
+                System.out.println("INSIDE POLLER GET");
+                byte[] reply = getSocket.recv(0);
+
+                // Print the message
+                System.out.println(
+                        "Received: [" + new String(reply, ZMQ.CHARSET) + "]"
+                );
+
+                // Send a response
+                String response = "meter get aqui";
+                getSocket.send(response.getBytes(ZMQ.CHARSET), 0);
             }
         }
     }
