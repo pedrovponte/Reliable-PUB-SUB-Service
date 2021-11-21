@@ -21,6 +21,22 @@ public class Topic {
         this.subsLastMessageIds = new ArrayList<>();
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public ArrayList<Integer> getSubscribers() {
+        return subscribers;
+    }
+
+    public ConcurrentHashMap<Integer, String> getMessages() {
+        return messages;
+    }
+
+    public boolean hasSubscriber(int subID) {
+        return this.subscribers.contains(subID);
+    }
+
     public void addSubscriber(int id) {
         this.subscribers.add(id);
         this.subsLastMessage.put(id, this.messageId);
@@ -34,20 +50,17 @@ public class Topic {
             return;
         }
         this.subscribers.remove(Integer.valueOf(id));
-        int messageIdSub = this.subsLastMessage.get(id);
-        this.subsLastMessage.remove(Integer.valueOf(id));
+        /*int messageIdSub = this.subsLastMessage.get(id);
+        this.subsLastMessage.remove(id);
         this.subsLastMessageIds.remove(messageIdSub);
 
-        System.out.println("Subscribers: " + subscribers);
+        System.out.println("Subscribers: " + subscribers);*/
     }
 
     public void addMessage(String message) {
         this.messages.put(this.messageId, message);
         this.messagesIds.add(this.messageId);
         this.messageId++;
-
-        System.out.println("MESSAGES: " + this.messages);
-        System.out.println("MESSAGES IDS: " + this.messagesIds);
     }
 
     public int removeMessage() {

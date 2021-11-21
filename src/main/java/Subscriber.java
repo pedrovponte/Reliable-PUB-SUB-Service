@@ -25,45 +25,24 @@ public class Subscriber implements SubscriberInterface {
 
     // subscribe a topic
     public void subscribe(String topic) {
+        System.out.println("Subscribing " + topic + "...");
         // Construct subscribe message: "0x01//topic//id"
-        String message = "0x01//" + topic + "//" + id;
-        this.subscriber.subscribe(message.getBytes());
+        String message = topic + "//" + id;
+        this.subscriber.subscribe(message.getBytes(ZMQ.CHARSET));
 
         String response = this.subscriber.recvStr();
         System.out.println(response.split(message)[1]);
-
-        /*for(int i = 0; i < responseStr.length; i++) {
-            System.out.println("Message: " + responseStr[i]);
-        }
-
-        if(responseStr[0].equals("Subscribed")) {
-            if(responseStr[1].equals(topic)) {
-                System.out.println("Client " + id + " subscribed topic " + topic);
-            }
-        }
-        else {
-            System.out.println("Client " + id + "failed to subscribe topic " + topic);
-        }*/
+        //this.subscriber.unsubscribe(message.getBytes(ZMQ.CHARSET));
     }
 
     // unsubscribe a topic
     public void unsubscribe(String topic) {
-        // Construct unsubscribe message "0x00//topic//id"
-        String message = "0x00//" + topic + "//" + id;
-        System.out.println("MESSAGE: " + message);
+        // Construct subscribe message: "0x01//topic//id"
+        String message = topic + "//" + id;
         this.subscriber.unsubscribe(message.getBytes());
-
         String response = this.subscriber.recvStr();
         System.out.println(response.split(message)[1]);
-
-//        if(responseStr[0].equals("Unsubscribed")) {
-//            if(responseStr[1].equals(topic)) {
-//                System.out.println("Client " + id + " unsubscribed topic " + topic);
-//            }
-//        }
-//        else {
-//            System.out.println("Client " + id + " failed to unsubscribe topic " + topic);
-//        }
+        //this.subscriber.unsubscribe(message.getBytes());
     }
 
     // to consume a message from a topic

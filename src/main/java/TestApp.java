@@ -13,34 +13,112 @@ public class TestApp {
         if (args.length < 2)
             throw new IllegalArgumentException("Not enough arguments");
 
-        String topic = "";
+        System.out.println(Arrays.toString(args));
+
         Registry reg = LocateRegistry.getRegistry("localhost");
         String id = args[1];
+
+        PublisherInterface publisher;
+        SubscriberInterface subscriber;
+        int index = 2;
+        StringBuilder topic = new StringBuilder();
+        StringBuilder msg = new StringBuilder();
 
         switch (args[0].toLowerCase()) {
             case "put":
                 // put <topic> <message>
-                topic = args[2];
-                String msg = args[3];
-                PublisherInterface publisher = (PublisherInterface) reg.lookup("Pub" + id);
-                publisher.put(topic, msg);
+                for (int x = 2; x < args.length; x++) {
+                    index++;
+                    if (args[x].contains("[")) {
+                        if (args[x].contains("]")) {
+                            topic.append(args[x], 1, args[x].length()-1);
+                            break;
+                        }
+                        topic.append(args[x].substring(1));
+                    }
+                    else if (args[x].contains("]")) {
+                        topic.append(args[x], 0, args[x].length() - 1);
+                        break;
+                    }
+                    else
+                        topic.append(args[x]);
+                    topic.append(" ");
+                }
+
+                for (int x = index; x < args.length; x++) {
+                    if (args[x].contains("[")) {
+                        if (args[x].contains("]")) {
+                            msg.append(args[x], 1, args[x].length()-1);
+                            break;
+                        }
+                        msg.append(args[x].substring(1));
+                    }
+                    else if (args[x].contains("]")) {
+                        msg.append(args[x], 0, args[x].length() - 1);
+                        break;
+                    }
+                    else
+                        msg.append(args[x]);
+                    msg.append(" ");
+                }
+
+                System.out.println(topic);
+                System.out.println(msg);
+
+                publisher = (PublisherInterface) reg.lookup("Pub" + id);
+                publisher.put(topic.toString(), msg.toString());
                 break;
             case "subscribe":
                 // subscribe <id> <topic>
-                topic = args[2];
-                SubscriberInterface subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
-                subscriber.subscribe(topic);
+                for (int x = 2; x < args.length; x++) {
+                    index++;
+                    if (args[x].contains("[")) {
+                        if (args[x].contains("]")) {
+                            topic.append(args[x], 1, args[x].length()-1);
+                            break;
+                        }
+                        topic.append(args[x].substring(1));
+                    }
+                    else if (args[x].contains("]")) {
+                        topic.append(args[x], 0, args[x].length() - 1);
+                        break;
+                    }
+                    else
+                        topic.append(args[x]);
+                    topic.append(" ");
+                }
+
+                subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
+                subscriber.subscribe(topic.toString());
                 break;
             case "unsubscribe":
                 // unsubscribe <id> <topic>
-                topic = args[2];
-                SubscriberInterface subscriber1 = (SubscriberInterface) reg.lookup("Sub" + id);
-                subscriber1.unsubscribe(topic);
+                for (int x = 2; x < args.length; x++) {
+                    index++;
+                    if (args[x].contains("[")) {
+                        if (args[x].contains("]")) {
+                            topic.append(args[x], 1, args[x].length()-1);
+                            break;
+                        }
+                        topic.append(args[x].substring(1));
+                    }
+                    else if (args[x].contains("]")) {
+                        topic.append(args[x], 0, args[x].length() - 1);
+                        break;
+                    }
+                    else
+                        topic.append(args[x]);
+                    topic.append(" ");
+                }
+
+                System.out.println(topic);
+                subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
+                subscriber.unsubscribe(topic.toString());
                 break;
             case "get":
-                topic = args[2];
-                SubscriberInterface subscriber2 = (SubscriberInterface) reg.lookup("Sub" + id);
-                subscriber2.get(topic);
+                topic = new StringBuilder(args[2]);
+                subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
+                subscriber.get(topic.toString());
             default:
                 throw new IllegalArgumentException("Illegal argument" + args[1]);
 
