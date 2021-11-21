@@ -15,11 +15,13 @@ public class Proxy {
     private ZMQ.Socket backend;
     private ConcurrentHashMap<String, Topic> topics; // key -> topicName; value -> Topic
     private ArrayList<String> topicNames; // array with topic names
-    private ScheduledThreadPoolExecutor threadExec;
+    private ScheduledThreadPoolExecutor exec;
     private ZMQ.Poller poller;
-    private ZContext context;
+    private static ZContext context;
 
     public Proxy() {
+        exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
+
         // Prepare our context and sockets
         this.context = new ZContext();
         this.frontend = context.createSocket(SocketType.SUB);
@@ -37,10 +39,29 @@ public class Proxy {
         this.topics = new ConcurrentHashMap<>();
         this.topicNames = new ArrayList<>();
 
-        this.threadExec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(300);
+        exec.execute(new Thread(Proxy::rcvGets));
 
         // Run the proxy until the user interrupts us
         // ZMQ.proxy(this.frontend, this.backend, null);
+    }
+
+    public static void rcvGets() {
+        ZMQ.Socket getSocket = context.createSocket(SocketType.REP);
+        getSocket.connect("tcp://localhost:5555");
+
+        while (!Thread.currentThread().isInterrupted()) {
+            // Block until a message is received
+            byte[] reply = getSocket.recv(0);
+
+            // Print the message
+            System.out.println(
+                    "Received: [" + new String(reply, ZMQ.CHARSET) + "]"
+            );
+
+            // Send a response
+            String response = "meter get aqui";
+            getSocket.send(response.getBytes(ZMQ.CHARSET), 0);
+        }
     }
 
     public void run() {

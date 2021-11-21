@@ -116,9 +116,26 @@ public class TestApp {
                 subscriber.unsubscribe(topic.toString());
                 break;
             case "get":
-                topic = new StringBuilder(args[2]);
+                for (int x = 2; x < args.length; x++) {
+                    if (args[x].contains("[")) {
+                        if (args[x].contains("]")) {
+                            topic.append(args[x], 1, args[x].length()-1);
+                            break;
+                        }
+                        topic.append(args[x].substring(1));
+                    }
+                    else if (args[x].contains("]")) {
+                        topic.append(args[x], 0, args[x].length() - 1);
+                        break;
+                    }
+                    else
+                        topic.append(args[x]);
+                    topic.append(" ");
+                }
+
                 subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
                 subscriber.get(topic.toString());
+                break;
             default:
                 throw new IllegalArgumentException("Illegal argument" + args[1]);
 

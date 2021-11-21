@@ -12,6 +12,7 @@ import java.util.StringTokenizer;
 
 public class Subscriber implements SubscriberInterface {
     private ZMQ.Socket subscriber;
+    private ZMQ.Socket getSocket;
     private static int id;
     private final ZContext context;
 
@@ -19,8 +20,10 @@ public class Subscriber implements SubscriberInterface {
         id = idS;
         this.context = new ZContext();
         subscriber = context.createSocket(SocketType.SUB);
+        getSocket = context.createSocket(SocketType.REQ);
         System.out.println("Subscriber Connecting to Proxy...");
         subscriber.connect("tcp://*:5556");
+        getSocket.bind("tcp://*:5555");
     }
 
     // subscribe a topic
@@ -48,18 +51,19 @@ public class Subscriber implements SubscriberInterface {
     // to consume a message from a topic
     public void get(String topic) {
         // Construct get message "0x03 topic id"
-        String message = "0x03//" + topic + "//" + id;
-        this.subscriber.send(message.getBytes());
+        String message = topic + "//" + id;
+        this.getSocket.send(message.getBytes());
 
-        byte[] response = this.subscriber.recv(); // "topic : message"
+        byte[] response = getSocket.recv(0); // "topic : message"
         String[] responseStr = new String(response).split(" : ");
 
-        if(responseStr[0].equals(topic)) {
+        System.out.println(Arrays.toString(responseStr));
+        /*if(responseStr[0].equals(topic)) {
             System.out.println("Message for Client " + id + "for topic " + topic + ": " + responseStr[1]);
         }
         else {
             System.out.println("Client" + id + " received message from another topic");
-        }
+        }*/
 
     }
 

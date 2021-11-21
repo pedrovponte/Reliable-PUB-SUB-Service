@@ -84,7 +84,7 @@ public class Topic {
         }
 
         this.subsLastMessage.replace(subId, lastSendMessageId + 1);
-        String message = this.messages.get(Integer.valueOf(lastSendMessageId + 1));
+        String message = this.messages.get(lastSendMessageId + 1);
         this.subsLastMessageIds.remove(Integer.valueOf(lastSendMessageId));
         this.subsLastMessageIds.add(lastSendMessageId + 1);
 
