@@ -23,7 +23,7 @@ public class Subscriber implements SubscriberInterface {
         getSocket = context.createSocket(SocketType.REQ);
         System.out.println("Subscriber Connecting to Proxy...");
         subscriber.connect("tcp://*:5556");
-        getSocket.bind("tcp://*:5555");
+        getSocket.connect("tcp://*:5555");
     }
 
     // subscribe a topic
