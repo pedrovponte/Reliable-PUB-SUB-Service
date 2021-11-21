@@ -29,43 +29,54 @@ public class Subscriber implements SubscriberInterface {
     // subscribe a topic
     public void subscribe(String topic) {
         System.out.println("Subscribing " + topic + "...");
-        // Construct subscribe message: "0x01//topic//id"
+        // Construct subscribe message: "topic//id"
         String message = topic + "//" + id;
         this.subscriber.subscribe(message.getBytes(ZMQ.CHARSET));
 
         String response = this.subscriber.recvStr();
         System.out.println(response.split(message)[1]);
-        //this.subscriber.unsubscribe(message.getBytes(ZMQ.CHARSET));
     }
 
     // unsubscribe a topic
     public void unsubscribe(String topic) {
-        // Construct subscribe message: "0x01//topic//id"
+        // Construct subscribe message: "topic//id"
         String message = topic + "//" + id;
         this.subscriber.unsubscribe(message.getBytes());
 
         String response = this.subscriber.recvStr();
         System.out.println(response.split(message)[1]);
-        //this.subscriber.unsubscribe(message.getBytes());
     }
 
     // to consume a message from a topic
     public void get(String topic) {
-        // Construct get message "0x03 topic id"
+        // Construct get message "topic id"
         String message = topic + "//" + id;
         this.getSocket.send(message.getBytes());
 
-        byte[] response = getSocket.recv(0); // "topic : message"
+        byte[] response = this.getSocket.recv(0); // "topic : message"
         String[] responseStr = new String(response).split(" : ");
 
         System.out.println(Arrays.toString(responseStr));
-        /*if(responseStr[0].equals(topic)) {
-            System.out.println("Message for Client " + id + "for topic " + topic + ": " + responseStr[1]);
+
+        if(responseStr[1].equals(topic)) { // response começa por 1 se tiver mensagens, 0 se não tiver mais, 2 se nao for subscritor, 3 se o topico nao existir
+            switch (responseStr[0]) {
+                case "0":
+                    System.out.println("Client " + id + " has no new messages to receive on topic '" + topic + "'.");
+                    break;
+                case "1":
+                    System.out.println("Message for Client " + id + " for topic '" + topic + "': " + responseStr[2]);
+                    break;
+                case "2":
+                    System.out.println("Client " + id + " didn't subscribe the topic '" + topic + "'.");
+                    break;
+                case "3":
+                    System.out.println("Client " + id + " asked for a topic ('" + topic + "') that doesn't exist.");
+                    break;
+            }
         }
         else {
-            System.out.println("Client" + id + " received message from another topic");
-        }*/
-
+            System.out.println("Client " + id + " received a message for a different topic that didn't ask.");
+        }
     }
 
     public static void main(String[] args) throws RemoteException {

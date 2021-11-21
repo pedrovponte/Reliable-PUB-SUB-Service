@@ -25,7 +25,7 @@ public class Publisher implements PublisherInterface {
     }
 
     public void put(String topic, String message) {
-        // Send message in format "0x02//topic//message"
+        // Send message in format "topic//message"
         String to_send = topic + "//" + message;
         this.publisher.send(to_send.getBytes());
         System.out.println("Message Sent: " + to_send);

@@ -5,7 +5,6 @@ import org.zeromq.ZMQ;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -34,10 +33,10 @@ public class Proxy {
         this.backend.bind("tcp://localhost:5556"); // 5557? conecta-se ao pub ou sub?
 
         this.getSocket = context.createSocket(SocketType.REP);
-        this.getSocket.bind("tcp://localhost:5555"); // 5557? conecta-se ao pub ou sub?
+        this.getSocket.bind("tcp://localhost:5555");
 
         this.pubConfirmations = context.createSocket(SocketType.PUSH);
-        this.pubConfirmations.bind("tcp://localhost:5558"); // 5557? conecta-se ao pub ou sub?
+        this.pubConfirmations.bind("tcp://localhost:5558");
 
         //  Initialize poll set
         this.poller = context.createPoller(2);
@@ -47,14 +46,10 @@ public class Proxy {
 
         this.topics = new ConcurrentHashMap<>();
         this.topicNames = new ArrayList<>();
-
-        // Run the proxy until the user interrupts us
-        // ZMQ.proxy(this.frontend, this.backend, null);
     }
 
     public void run() {
         while(!Thread.currentThread().isInterrupted()) {
-            System.out.println("Running");
             System.out.println("There is currently " + topicNames.size() + " topic(s)");
             System.out.println(topics);
             this.poller.poll();
@@ -76,16 +71,10 @@ public class Proxy {
 
             if(this.poller.pollin(2)) {
                 System.out.println("INSIDE POLLER GET");
-                byte[] reply = getSocket.recv(0);
-
-                // Print the message
-                System.out.println(
-                        "Received: [" + new String(reply, ZMQ.CHARSET) + "]"
-                );
-
-                // Send a response
-                String response = "meter get aqui";
-                getSocket.send(response.getBytes(ZMQ.CHARSET), 0);
+                ZFrame frame = ZFrame.recvFrame(this.getSocket);
+                byte[] msgData = frame.getData();
+                handleGet(msgData);
+                frame.destroy();
             }
         }
     }
@@ -118,7 +107,7 @@ public class Proxy {
             System.out.println(this.topics.get(topic).getMessages());
         }
 
-        String confirmation = "Message has been successfully to topic " + topic;
+        String confirmation = "Message has been successfully published to topic " + topic;
         pubConfirmations.send(confirmation.getBytes(ZMQ.CHARSET));
     }
 
@@ -130,7 +119,7 @@ public class Proxy {
         String toSend = "";
 
         // Subscribe message
-        if(b == 1) { // "0x01//topic//id"
+        if(b == 1) { // "topic//id"
             String topic = message[0];
             int id = Integer.parseInt(message[1]);
 
@@ -156,7 +145,7 @@ public class Proxy {
         }
 
         // Unsubscribe message
-        else if(b == 0) { // "0x00//topic//id"
+        else if(b == 0) { // "topic//id"
             String topic = message[0];
             int id = Integer.parseInt(message[1]);
 
@@ -172,14 +161,14 @@ public class Proxy {
         }
 
         // Get message
-        else if(message[0].equals("0x03")) { // "0x03 topic id"
+        else if(message[0].equals("0x03")) { // "topic id"
             String topic = message[1];
             int id = Integer.parseInt(message[2]);
 
             if(this.topicNames.contains(topic)) {
                 Topic topicObj = this.topics.get(topic);
 
-                String topicMessage = topicObj.get_message(id);
+                String topicMessage = topicObj.getMessage(id);
 
                 toSend = topic + " : " + topicMessage;
             }
@@ -187,6 +176,37 @@ public class Proxy {
 
         //System.out.println("TO SEND: " + toSend);
         this.backend.send(toSend.getBytes());
+    }
+
+    public void handleGet(byte[] msgData) {
+        String msgString = new String(msgData, 0, msgData.length, ZMQ.CHARSET);
+        String[] message = msgString.split("//");
+        System.out.println(Arrays.toString(message));
+        String toSend = "";
+
+        String topic = message[0];
+        int id = Integer.parseInt(message[1]);
+
+        if(this.topicNames.contains(topic)) { // toSend começa por 1 se tiver mensagens, 0 se não tiver mais, 2 se nao for subscritor, 3 se o topico nao existir
+            Topic t = this.topics.get(topic);
+            if(t.hasSubscriber(id)) {
+                if(t.checkNext(id)) {
+                    String topicMessage = t.getMessage(id);
+                    toSend = "1 : " + topic + " : " + topicMessage;
+                }
+                else {
+                    toSend = "0 : " + topic;
+                }
+            }
+            else {
+                toSend = "2 : " + topic;
+            }
+        }
+        else {
+            toSend = "3 : " + topic;
+        }
+
+        this.getSocket.send(toSend.getBytes());
     }
 
     public static void main(String[] args) {

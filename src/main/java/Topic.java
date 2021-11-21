@@ -13,7 +13,7 @@ public class Topic {
 
     public Topic(String name) {
         this.name = name;
-        this.messageId = 0;
+        this.messageId = -1;
         this.subscribers = new ArrayList<>();
         this.messages = new ConcurrentHashMap<>();
         this.subsLastMessage = new ConcurrentHashMap<>();
@@ -42,6 +42,8 @@ public class Topic {
         this.subsLastMessage.put(id, this.messageId);
         this.subsLastMessageIds.add(this.messageId);
         System.out.println("Subscribers: " + subscribers);
+        System.out.println("Subs Last Message: " + this.subsLastMessage);
+        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);
     }
 
     public void removeSubscriber(int id) {
@@ -50,17 +52,19 @@ public class Topic {
             return;
         }
         this.subscribers.remove(Integer.valueOf(id));
-        /*int messageIdSub = this.subsLastMessage.get(id);
+        int messageIdSub = this.subsLastMessage.get(id);
         this.subsLastMessage.remove(id);
         this.subsLastMessageIds.remove(messageIdSub);
 
-        System.out.println("Subscribers: " + subscribers);*/
+        System.out.println("Subscribers: " + subscribers);
+        System.out.println("Subs Last Message: " + this.subsLastMessage);
+        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);
     }
 
     public void addMessage(String message) {
+        this.messageId++;
         this.messages.put(this.messageId, message);
         this.messagesIds.add(this.messageId);
-        this.messageId++;
     }
 
     public int removeMessage() {
@@ -76,17 +80,30 @@ public class Topic {
         return 0;
     }
 
-    public String get_message(int subId) {
+    public boolean checkNext(int subId) {
         int lastSendMessageId = this.subsLastMessage.get(subId);
 
         if(lastSendMessageId >= Collections.max(this.messagesIds)) {
-            return "Null";
+            return false;
         }
+        return true;
+    }
+
+    public String getMessage(int subId) {
+        int lastSendMessageId = this.subsLastMessage.get(subId);
+
+//        if(lastSendMessageId >= Collections.max(this.messagesIds)) {
+//            return null;
+//        }
 
         this.subsLastMessage.replace(subId, lastSendMessageId + 1);
         String message = this.messages.get(lastSendMessageId + 1);
         this.subsLastMessageIds.remove(Integer.valueOf(lastSendMessageId));
         this.subsLastMessageIds.add(lastSendMessageId + 1);
+
+        System.out.println("Subscribers: " + subscribers);
+        System.out.println("Subs Last Message: " + this.subsLastMessage);
+        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);
 
         this.removeMessage();
 
