@@ -26,7 +26,7 @@ public class TestApp {
 
         switch (args[0].toLowerCase()) {
             case "put":
-                // put <topic> <message>
+                // put id [topic] [message]
                 for (int x = 2; x < args.length; x++) {
                     index++;
                     if (args[x].contains("[")) {
@@ -69,7 +69,7 @@ public class TestApp {
                 publisher.put(topic.toString(), msg.toString());
                 break;
             case "subscribe":
-                // subscribe <id> <topic>
+                // subscribe id [topic]
                 for (int x = 2; x < args.length; x++) {
                     index++;
                     if (args[x].contains("[")) {
@@ -92,7 +92,7 @@ public class TestApp {
                 subscriber.subscribe(topic.toString());
                 break;
             case "unsubscribe":
-                // unsubscribe <id> <topic>
+                // unsubscribe id [topic]
                 for (int x = 2; x < args.length; x++) {
                     index++;
                     if (args[x].contains("[")) {
@@ -116,6 +116,7 @@ public class TestApp {
                 subscriber.unsubscribe(topic.toString());
                 break;
             case "get":
+                // get id [topic]
                 for (int x = 2; x < args.length; x++) {
                     if (args[x].contains("[")) {
                         if (args[x].contains("]")) {
