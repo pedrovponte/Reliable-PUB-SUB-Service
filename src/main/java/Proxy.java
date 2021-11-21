@@ -14,6 +14,7 @@ public class Proxy {
     private ZMQ.Socket frontend;
     private ZMQ.Socket backend;
     private ZMQ.Socket getSocket;
+    private ZMQ.Socket pubConfirmations;
     private ConcurrentHashMap<String, Topic> topics; // key -> topicName; value -> Topic
     private ArrayList<String> topicNames; // array with topic names
     private ScheduledThreadPoolExecutor exec;
@@ -34,6 +35,9 @@ public class Proxy {
 
         this.getSocket = context.createSocket(SocketType.REP);
         this.getSocket.bind("tcp://localhost:5555"); // 5557? conecta-se ao pub ou sub?
+
+        this.pubConfirmations = context.createSocket(SocketType.PUSH);
+        this.pubConfirmations.bind("tcp://localhost:5558"); // 5557? conecta-se ao pub ou sub?
 
         //  Initialize poll set
         this.poller = context.createPoller(2);
@@ -113,6 +117,9 @@ public class Proxy {
             this.topics.get(topic).addMessage(messageT);
             System.out.println(this.topics.get(topic).getMessages());
         }
+
+        String confirmation = "Message has been successfully to topic " + topic;
+        pubConfirmations.send(confirmation.getBytes(ZMQ.CHARSET));
     }
 
     public void handleBackend(byte[] msgData) {
@@ -143,7 +150,7 @@ public class Proxy {
             System.out.println("Topics: " + this.topics);
             System.out.println("Topics: " + this.topicNames);
 
-            // backend.send(toSend.getBytes());
+            backend.send(msgString + "Topic " + topic + " subscribed successfully");
 
             // return;
         }
@@ -160,6 +167,8 @@ public class Proxy {
             toSend = "0x00//" + topic + "//" + id + "Topic " + topic + " has been successfully unsubscribed";
 
             System.out.println("Subscriber " + id +  " unsuccessfully subscribed topic " + topic);
+
+            backend.send(msgString + "Topic " + topic + " unsubscribed successfully");
         }
 
         // Get message
@@ -178,7 +187,6 @@ public class Proxy {
 
         //System.out.println("TO SEND: " + toSend);
         this.backend.send(toSend.getBytes());
-        // this.frontend.subscribe(toSend.getBytes());
     }
 
     public static void main(String[] args) {

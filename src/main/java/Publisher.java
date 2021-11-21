@@ -1,5 +1,6 @@
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
+import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
 import java.rmi.RemoteException;
@@ -12,12 +13,15 @@ import java.util.Arrays;
 public class Publisher implements PublisherInterface {
     private ZMQ.Socket publisher;
     private final ZContext context;
-
+    private ZMQ.Socket confirmations;
     public Publisher(int idP) {
         context = new ZContext();
         this.publisher = context.createSocket(SocketType.XPUB); // or PUB?
         System.out.println("Publisher Connecting to Proxy...");
         this.publisher.connect("tcp://*:5557");
+
+        this.confirmations = context.createSocket(SocketType.PULL);
+        this.confirmations.connect("tcp://localhost:5558");
     }
 
     public void put(String topic, String message) {
@@ -25,6 +29,9 @@ public class Publisher implements PublisherInterface {
         String to_send = topic + "//" + message;
         this.publisher.send(to_send.getBytes());
         System.out.println("Message Sent: " + to_send);
+
+        String reply = new String(confirmations.recv(0));
+        System.out.println(reply);
     }
 
     public static void main(String[] args) throws Exception {

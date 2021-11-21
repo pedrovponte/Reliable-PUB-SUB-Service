@@ -43,6 +43,7 @@ public class Subscriber implements SubscriberInterface {
         // Construct subscribe message: "0x01//topic//id"
         String message = topic + "//" + id;
         this.subscriber.unsubscribe(message.getBytes());
+
         String response = this.subscriber.recvStr();
         System.out.println(response.split(message)[1]);
         //this.subscriber.unsubscribe(message.getBytes());
