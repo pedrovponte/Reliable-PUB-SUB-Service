@@ -54,7 +54,7 @@ public class Topic {
         this.subscribers.remove(Integer.valueOf(id));
         int messageIdSub = this.subsLastMessage.get(id);
         this.subsLastMessage.remove(id);
-        this.subsLastMessageIds.remove(messageIdSub);
+        this.subsLastMessageIds.remove(Integer.valueOf(messageIdSub));
 
         System.out.println("Subscribers: " + subscribers);
         System.out.println("Subs Last Message: " + this.subsLastMessage);

@@ -18,28 +18,28 @@ public class Proxy {
     private ArrayList<String> topicNames; // array with topic names
     private ScheduledThreadPoolExecutor exec;
     private ZMQ.Poller poller;
-    private static ZContext context;
+    private final ZContext context;
 
     public Proxy() {
-        exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
+        this.exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
 
         // Prepare our context and sockets
-        context = new ZContext();
-        this.frontend = context.createSocket(SocketType.SUB);
-        this.frontend.bind("tcp://localhost:5557"); // 5556? conecta-se ao pub ou sub?
+        this.context = new ZContext();
+        this.frontend = this.context.createSocket(SocketType.SUB);
+        this.frontend.bind("tcp://localhost:5557");
         this.frontend.subscribe(ZMQ.SUBSCRIPTION_ALL);
 
-        this.backend = context.createSocket(SocketType.XPUB);
-        this.backend.bind("tcp://localhost:5556"); // 5557? conecta-se ao pub ou sub?
+        this.backend = this.context.createSocket(SocketType.XPUB);
+        this.backend.bind("tcp://localhost:5556");
 
-        this.getSocket = context.createSocket(SocketType.REP);
+        this.getSocket = this.context.createSocket(SocketType.REP);
         this.getSocket.bind("tcp://localhost:5555");
 
-        this.pubConfirmations = context.createSocket(SocketType.PUSH);
+        this.pubConfirmations = this.context.createSocket(SocketType.PUSH);
         this.pubConfirmations.bind("tcp://localhost:5558");
 
         //  Initialize poll set
-        this.poller = context.createPoller(2);
+        this.poller = this.context.createPoller(2);
         this.poller.register(this.frontend, ZMQ.Poller.POLLIN);
         this.poller.register(this.backend, ZMQ.Poller.POLLIN);
         this.poller.register(this.getSocket, ZMQ.Poller.POLLIN);
@@ -108,7 +108,7 @@ public class Proxy {
         }
 
         String confirmation = "Message has been successfully published to topic " + topic;
-        pubConfirmations.send(confirmation.getBytes(ZMQ.CHARSET));
+        this.pubConfirmations.send(confirmation.getBytes(ZMQ.CHARSET));
     }
 
     public void handleBackend(byte[] msgData) {
@@ -132,14 +132,14 @@ public class Proxy {
                 this.topics.put(topic, newTopic);
                 this.topicNames.add(topic);
             }
-            toSend = "0x01//" + topic + "//" + id + "Topic " + topic + " has been successfully subscribed";
+            toSend = msgString + "Topic " + topic + " has been successfully subscribed";
 
             System.out.println("Subscriber " + id +  " successfully subscribed topic " + topic);
 
             System.out.println("Topics: " + this.topics);
             System.out.println("Topics: " + this.topicNames);
 
-            backend.send(msgString + "Topic " + topic + " subscribed successfully");
+            this.backend.send(msgString + "Topic " + topic + " successfully subscribed.");
 
             // return;
         }
@@ -153,11 +153,11 @@ public class Proxy {
             this.checkTopics(topic, id);
             // necessario apagar o topico das listas caso fique sem nenhum subscritor?
 
-            toSend = "0x00//" + topic + "//" + id + "Topic " + topic + " has been successfully unsubscribed";
+            toSend = msgString + "Topic " + topic + " has been successfully unsubscribed";
 
-            System.out.println("Subscriber " + id +  " unsuccessfully subscribed topic " + topic);
+            System.out.println("Subscriber " + id +  " successfully unsubscribed topic " + topic);
 
-            backend.send(msgString + "Topic " + topic + " unsubscribed successfully");
+            this.backend.send(msgString + "Topic " + topic + " successfully unsubscribed.");
         }
 
         // Get message
@@ -171,11 +171,13 @@ public class Proxy {
                 String topicMessage = topicObj.getMessage(id);
 
                 toSend = topic + " : " + topicMessage;
+
+                this.backend.send(toSend.getBytes());
             }
         }
 
         //System.out.println("TO SEND: " + toSend);
-        this.backend.send(toSend.getBytes());
+        //this.backend.send(toSend.getBytes());
     }
 
     public void handleGet(byte[] msgData) {

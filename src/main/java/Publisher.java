@@ -14,6 +14,7 @@ public class Publisher implements PublisherInterface {
     private ZMQ.Socket publisher;
     private final ZContext context;
     private ZMQ.Socket confirmations;
+
     public Publisher(int idP) {
         context = new ZContext();
         this.publisher = context.createSocket(SocketType.XPUB); // or PUB?
@@ -27,10 +28,21 @@ public class Publisher implements PublisherInterface {
     public void put(String topic, String message) {
         // Send message in format "topic//message"
         String to_send = topic + "//" + message;
-        this.publisher.send(to_send.getBytes());
+
+        if(!this.publisher.send(to_send.getBytes())) {
+            System.out.println("Publisher failed to put a message on proxy.");
+            return;
+        }
+
         System.out.println("Message Sent: " + to_send);
 
-        String reply = new String(confirmations.recv(0));
+        String reply = new String(this.confirmations.recv(0));
+
+        if(reply == null) {
+            System.out.println("Failed to receive put confirmation message.");
+            return;
+        }
+
         System.out.println(reply);
     }
 

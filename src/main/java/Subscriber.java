@@ -19,11 +19,11 @@ public class Subscriber implements SubscriberInterface {
     public Subscriber(int idS) {
         id = idS;
         this.context = new ZContext();
-        subscriber = context.createSocket(SocketType.SUB);
-        getSocket = context.createSocket(SocketType.REQ);
+        this.subscriber = this.context.createSocket(SocketType.SUB);
+        this.getSocket = this.context.createSocket(SocketType.REQ);
         System.out.println("Subscriber Connecting to Proxy...");
-        subscriber.connect("tcp://*:5556");
-        getSocket.connect("tcp://*:5555");
+        this.subscriber.connect("tcp://*:5556");
+        this.getSocket.connect("tcp://*:5555");
     }
 
     // subscribe a topic
@@ -31,9 +31,18 @@ public class Subscriber implements SubscriberInterface {
         System.out.println("Subscribing " + topic + "...");
         // Construct subscribe message: "topic//id"
         String message = topic + "//" + id;
-        this.subscriber.subscribe(message.getBytes(ZMQ.CHARSET));
+
+        if(!this.subscriber.subscribe(message.getBytes(ZMQ.CHARSET))) {
+            System.out.println("Failed to subscribe topic '" + topic + "'.");
+            return;
+        }
 
         String response = this.subscriber.recvStr();
+
+        if(response == null) {
+            return;
+        }
+
         System.out.println(response.split(message)[1]);
     }
 
@@ -41,9 +50,19 @@ public class Subscriber implements SubscriberInterface {
     public void unsubscribe(String topic) {
         // Construct subscribe message: "topic//id"
         String message = topic + "//" + id;
-        this.subscriber.unsubscribe(message.getBytes());
+
+        if(!this.subscriber.unsubscribe(message.getBytes())) {
+            System.out.println("Failed to unsubscribe topic '" + topic + "'.");
+            return;
+        }
 
         String response = this.subscriber.recvStr();
+
+        if(response == null) {
+            System.out.println("Failed to receive unsubscribe confirmation.");
+            return;
+        }
+
         System.out.println(response.split(message)[1]);
     }
 
@@ -51,9 +70,19 @@ public class Subscriber implements SubscriberInterface {
     public void get(String topic) {
         // Construct get message "topic id"
         String message = topic + "//" + id;
-        this.getSocket.send(message.getBytes());
+
+        if(!this.getSocket.send(message.getBytes())) {
+            System.out.println("Failed to send get message to proxy for topic '" + topic + "'.");
+            return;
+        }
 
         byte[] response = this.getSocket.recv(0); // "topic : message"
+
+        if(response == null) {
+            System.out.println("Failed to receive a message fot topic '" + topic + "'.");
+            return;
+        }
+
         String[] responseStr = new String(response).split(" : ");
 
         System.out.println(Arrays.toString(responseStr));
