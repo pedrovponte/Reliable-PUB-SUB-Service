@@ -62,7 +62,7 @@ public class Subscriber implements SubscriberInterface {
             return;
         }
 
-        System.out.println("Topic " + topic + " subscribed successfully.");
+        System.out.println("Topic " + topic + " successfully subscribed.");
         topicsSubscribed.add(topic);
     }
 
@@ -71,10 +71,10 @@ public class Subscriber implements SubscriberInterface {
         // Construct subscribe message: "topic//id"
         String message = topic + "//" + id;
 
-        System.out.println("Unsubscribing topic " + topic);
+        System.out.println("Unsubscribing topic " + topic + "...");
 
         if (!topicsSubscribed.contains(topic)) {
-            System.out.println("Not subscribed to this topic.");
+            System.out.println("Subscriber " + id + " not subscribed to topic " + topic + ".");
             return;
         }
 

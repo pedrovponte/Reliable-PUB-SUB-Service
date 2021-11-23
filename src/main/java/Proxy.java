@@ -212,7 +212,6 @@ public class Proxy {
         byte b = msgData[0];
         String msgString = new String(msgData, 1, msgData.length - 1, ZMQ.CHARSET);
         String[] message = msgString.split("//");
-        String toSend = "";
 
         // Subscribe message
         if(b == 1) { // "topic//id"
@@ -228,13 +227,11 @@ public class Proxy {
                 this.storage.getTopics().put(topic, newTopic);
                 this.storage.getTopicNames().add(topic);
             }
-            toSend = msgString + "Topic " + topic + " has been successfully subscribed";
 
             System.out.println("Subscriber " + id +  " successfully subscribed topic " + topic);
 
             this.backend.send(msgString + "Topic " + topic + " successfully subscribed.");
 
-            // return;
         }
 
         // Unsubscribe message
@@ -247,33 +244,15 @@ public class Proxy {
                 this.backend.send(msgString + "Subscriber " + id + " isn't subscribed to topic " + topic);
                 return;
             }
-            // necessario apagar o topico das listas caso fique sem nenhum subscritor?
-
-            toSend = msgString + "Topic " + topic + " has been successfully unsubscribed";
 
             System.out.println("Subscriber " + id +  " successfully unsubscribed topic " + topic);
 
             this.backend.send(msgString + "Topic " + topic + " successfully unsubscribed.");
         }
 
-        // Get message
-        else if(message[0].equals("0x03")) { // "topic id"
-            String topic = message[1];
-            int id = Integer.parseInt(message[2]);
-
-            if(this.storage.getTopicNames().contains(topic)) {
-                Topic topicObj = this.storage.getTopics().get(topic);
-
-                String topicMessage = topicObj.getMessage(id);
-
-                toSend = topic + " : " + topicMessage;
-
-                this.backend.send(toSend.getBytes());
-            }
+        else {
+            System.out.println("Invalid message");
         }
-
-        //System.out.println("TO SEND: " + toSend);
-        //this.backend.send(toSend.getBytes());
     }
 
     public void handleGet(byte[] msgData) {
@@ -284,22 +263,22 @@ public class Proxy {
         String topic = message[0];
         int id = Integer.parseInt(message[1]);
 
-        if(this.storage.getTopicNames().contains(topic)) { // toSend começa por 1 se tiver mensagens, 0 se não tiver mais, 2 se nao for subscritor, 3 se o topico nao existir
+        if(this.storage.getTopicNames().contains(topic)) { // toSend starts by 1 if has new messages, 0 if not, 2 if not subscriber, 3 if topic doesn't exist
             Topic t = this.storage.getTopics().get(topic);
             if(t.hasSubscriber(id)) {
                 if(t.checkNext(id)) {
                     String topicMessage = t.getMessage(id);
                     toSend = "1 : " + topic + " : " + topicMessage;
                 }
-                else {
+                else { // no new messages
                     toSend = "0 : " + topic;
                 }
             }
-            else {
+            else { // topic not subscribed
                 toSend = "2 : " + topic;
             }
         }
-        else {
+        else { // topic not exist
             toSend = "3 : " + topic;
         }
 
