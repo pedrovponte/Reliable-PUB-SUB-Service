@@ -18,7 +18,6 @@ public class Publisher implements PublisherInterface {
     public Publisher(int idP) {
         context = new ZContext();
         this.publisher = context.createSocket(SocketType.XPUB); // or PUB?
-        System.out.println("Publisher Connecting to Proxy...");
         this.publisher.connect("tcp://*:5557");
 
         this.confirmations = context.createSocket(SocketType.PULL);
@@ -36,12 +35,8 @@ public class Publisher implements PublisherInterface {
 
         System.out.println("Message Sent: " + to_send);
 
-        String reply = new String(this.confirmations.recv(0));
-
-        if(reply == null) {
-            System.out.println("Failed to receive put confirmation message.");
-            return;
-        }
+        byte[] a = this.confirmations.recv(0);
+        String reply = new String(a);
 
         System.out.println(reply);
     }

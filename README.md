@@ -1,10 +1,10 @@
 # SDLE Project
 
-SDLE Project for group T&lt;n&gt;G&lt;p&gt;&lt;q&gt;.
+SDLE Project for group T2G15.
 
 Group members:
 
-1. &lt;first name&gt; &lt;family name&gt; (&lt;email address&gt;)
-2. &lt;first name&gt; &lt;family name&gt; (&lt;email address&gt;)
-3. &lt;first name&gt; &lt;family name&gt; (&lt;email address&gt;)
-4. &lt;first name&gt; &lt;family name&gt; (&lt;email address&gt;)
+1. José Rocha (up201806371@edu.fe.up.pt)
+2. Miguel Silva (up201806388@edu.fe.up.pt)
+3. Pedro Ferreira (up201806506@edu.fe.up.pt)
+4. Pedro Ponte (up201809694@edu.fe.up.pt)

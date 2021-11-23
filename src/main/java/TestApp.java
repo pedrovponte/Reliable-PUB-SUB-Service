@@ -9,11 +9,8 @@ import java.util.Arrays;
 public class TestApp {
 
     public static void main(String[] args) throws RemoteException, NotBoundException {
-
         if (args.length < 2)
             throw new IllegalArgumentException("Not enough arguments");
-
-        System.out.println(Arrays.toString(args));
 
         Registry reg = LocateRegistry.getRegistry("localhost");
         String id = args[1];
@@ -62,9 +59,6 @@ public class TestApp {
                     msg.append(" ");
                 }
 
-                System.out.println(topic);
-                System.out.println(msg);
-
                 publisher = (PublisherInterface) reg.lookup("Pub" + id);
                 publisher.put(topic.toString(), msg.toString());
                 break;
@@ -111,7 +105,6 @@ public class TestApp {
                     topic.append(" ");
                 }
 
-                System.out.println(topic);
                 subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
                 subscriber.unsubscribe(topic.toString());
                 break;
