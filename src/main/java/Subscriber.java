@@ -2,13 +2,16 @@ import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
+import java.io.*;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.ExportException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -19,24 +22,97 @@ public class Subscriber implements SubscriberInterface {
     private static ZMQ.Socket notifySocket;
     private static int id;
     private final ZContext context;
-    private static List<String> topicsSubscribed;
+    private static StorageSub storage;
 
     public Subscriber(int idS) {
         id = idS;
+
+        File f = new File("subscribers/subscriber_" + id + ".ser");
+        if(f.exists() && !f.isDirectory()) {
+            try {
+                FileInputStream fileInput = new FileInputStream("subscribers/subscriber_" + id + ".ser");
+                ObjectInputStream inputObj = new ObjectInputStream(fileInput);
+                storage = (StorageSub) inputObj.readObject();
+                inputObj.close();
+                fileInput.close();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+
+        }
+        else {
+            storage = new StorageSub();
+        }
+
         this.context = new ZContext();
-        topicsSubscribed = new ArrayList<>();
         this.subscriber = this.context.createSocket(SocketType.SUB);
         this.getSocket = this.context.createSocket(SocketType.REQ);
         notifySocket = this.context.createSocket(SocketType.PUSH);
         this.subscriber.connect("tcp://*:5556");
         this.getSocket.connect("tcp://*:5555");
         notifySocket.connect("tcp://*:5559");
-        ScheduledThreadPoolExecutor exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(2);
+        ScheduledThreadPoolExecutor exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
         exec.scheduleAtFixedRate(Subscriber::notifyProxy, 0, 2, TimeUnit.SECONDS);
+        exec.scheduleAtFixedRate(checkTime, 1, 1, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(serialize, 5, 10, TimeUnit.SECONDS);
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                System.out.println("Running Shutdown Hook");
+                exec.execute(serialize);
+                subscriber.close();
+                getSocket.close();
+                notifySocket.close();
+            }
+        });
     }
 
+
+    Runnable checkTime = new Runnable() {
+        @Override
+        public void run() {
+            ConcurrentHashMap<String, String> times = storage.getTopicsSubscribed();
+            System.out.println("Checking times...");
+
+            for(String t : times.keySet()) {
+                String time = times.get(t);
+
+                if(System.currentTimeMillis() - Long.parseLong(time) > 60000) { // 5 minutes -> 300000
+                    unsubscribe(t);
+                }
+            }
+        }
+    };
+
+    Runnable serialize = new Runnable() {
+        public void run() {
+            System.out.println("Serializing...");
+            String filename = "subscribers/subscriber_" + id + ".ser";
+
+            File file = new File(filename);
+            if (!file.exists()) {
+                file.getParentFile().mkdirs();
+                try {
+                    file.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            try {
+                FileOutputStream fileStream = new FileOutputStream(filename);
+                ObjectOutputStream outputStream = new ObjectOutputStream(fileStream);
+                outputStream.writeObject(storage);
+                outputStream.close();
+                fileStream.close();
+            } catch (IOException e ) {
+                e.printStackTrace();
+            }
+
+        }
+    };
+
     public static void notifyProxy() {
-        if (topicsSubscribed.isEmpty())
+        if (storage.getTopicsSubscribed().isEmpty())
             return;
         System.out.println("Notifying Proxy...");
         String msg = String.valueOf(id);
@@ -63,7 +139,7 @@ public class Subscriber implements SubscriberInterface {
         }
 
         System.out.println("Topic " + topic + " successfully subscribed.");
-        topicsSubscribed.add(topic);
+        storage.addTopic(topic, String.valueOf(System.currentTimeMillis()));
     }
 
     // unsubscribe a topic
@@ -73,7 +149,7 @@ public class Subscriber implements SubscriberInterface {
 
         System.out.println("Unsubscribing topic " + topic + "...");
 
-        if (!topicsSubscribed.contains(topic)) {
+        if (!storage.getTopics().contains(topic)) {
             System.out.println("Subscriber " + id + " not subscribed to topic " + topic + ".");
             return;
         }
@@ -91,6 +167,7 @@ public class Subscriber implements SubscriberInterface {
         }*/
 
         System.out.println("Topic " + topic + " unsubscribed successfully.");
+        storage.removeTopic(topic);
     }
 
     // to consume a message from a topic
@@ -102,6 +179,8 @@ public class Subscriber implements SubscriberInterface {
             System.out.println("Failed to send get message to proxy for topic '" + topic + "'.");
             return;
         }
+
+        storage.replaceTimeTopic(topic, String.valueOf(System.currentTimeMillis()));
 
         subscriber.setReceiveTimeOut(5000);
         byte[] response = this.getSocket.recv(0); // "topic : message"

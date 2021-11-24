@@ -9,3 +9,7 @@ target/
 .classpath
 
 .project
+
+subscribers/
+
+proxy/
