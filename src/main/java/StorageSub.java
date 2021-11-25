@@ -14,11 +14,8 @@ public class StorageSub implements Serializable {
     }
 
     public ArrayList<String> getTopics() {
-        ArrayList<String> topics = new ArrayList<>();
 
-        for(String s : this.topicsSubscribed.keySet()) {
-            topics.add(s);
-        }
+        ArrayList<String> topics = new ArrayList<>(this.topicsSubscribed.keySet());
 
         return topics;
     }

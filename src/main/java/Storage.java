@@ -1,6 +1,6 @@
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Storage implements Serializable {
@@ -20,6 +20,19 @@ public class Storage implements Serializable {
     }
 
     public ConcurrentHashMap<String, Topic> getTopics() {
+        return topics;
+    }
+
+    public List<String> getTopicsSubscribedBySubscriber(int subID) {
+        java.util.List<String> topics = new ArrayList<>();
+
+        for (String t: this.topics.keySet()) {
+            for (int id: this.topics.get(t).getSubscribers()) {
+                if (id == subID)
+                    topics.add(this.topics.get(t).getName());
+            }
+        }
+
         return topics;
     }
 }

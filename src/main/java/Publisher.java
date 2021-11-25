@@ -55,15 +55,15 @@ public class Publisher implements PublisherInterface {
     public static void main(String[] args) throws Exception {
         if (args.length < 1) System.out.println("Please specify an (unique) ID for this publisher");
         try {
+            Registry rmiRegistry = LocateRegistry.createRegistry(1099);
             Publisher obj = new Publisher(Integer.parseInt(args[0])); // user passa port a conectar?
             PublisherInterface stub = (PublisherInterface) UnicastRemoteObject.exportObject(obj, 0);
-            Registry rmiRegistry = LocateRegistry.createRegistry(1099);
             rmiRegistry.rebind("Pub" + args[0], stub);
             System.out.printf("Publisher %s ready\n", args[0]);
         } catch (ExportException f) {
+            Registry rmiRegistry = LocateRegistry.getRegistry(1099);
             Publisher obj = new Publisher(Integer.parseInt(args[0]));
             PublisherInterface stub = (PublisherInterface) UnicastRemoteObject.exportObject(obj, 0);
-            Registry rmiRegistry = LocateRegistry.getRegistry(1099);
             rmiRegistry.rebind("Pub" + args[0], stub);
             System.out.printf("Publisher %s ready\n", args[0]);
         }

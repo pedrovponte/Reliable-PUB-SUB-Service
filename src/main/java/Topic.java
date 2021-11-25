@@ -39,6 +39,8 @@ public class Topic implements Serializable {
     }
 
     public void addSubscriber(int id) {
+        if (this.subscribers.contains(id))
+            return;
         this.subscribers.add(id);
         this.subsLastMessage.put(id, this.messageId);
         this.subsLastMessageIds.add(this.messageId);

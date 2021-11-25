@@ -1,4 +1,5 @@
 import java.net.MalformedURLException;
+import java.rmi.ConnectException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -88,8 +89,11 @@ public class TestApp {
                     publisher = (PublisherInterface) reg.lookup("Pub" + id);
                     publisher.put(topic.toString(), msg.toString());
                 }
-                catch (RemoteException e) {
+                catch (NotBoundException e) {
                     System.out.println("There is no publisher with that ID. Try again.");
+                }
+                catch (ConnectException c) {
+                    System.out.println("RMI hasn't been bound yet. (There are no publishers or subscribers in the network)");
                 }
                 break;
             case "subscribe":
@@ -131,10 +135,13 @@ public class TestApp {
 
                 try {
                     subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
-                    subscriber.get(topic.toString());
+                    subscriber.subscribe(topic.toString());
                 }
-                catch (RemoteException e) {
+                catch (NotBoundException e) {
                     System.out.println("There is no subscriber with that ID. Try again.");
+                }
+                catch (ConnectException c) {
+                    System.out.println("RMI hasn't been bound yet. (There are no publishers or subscribers in the network)");
                 }
                 break;
             case "unsubscribe":
@@ -178,8 +185,11 @@ public class TestApp {
                     subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
                     subscriber.unsubscribe(topic.toString());
                 }
-                catch (RemoteException e) {
+                catch (NotBoundException e) {
                     System.out.println("There is no subscriber with that ID. Try again.");
+                }
+                catch (ConnectException c) {
+                    System.out.println("RMI hasn't been bound yet. (There are no publishers or subscribers in the network)");
                 }
                 break;
             case "get":
@@ -222,8 +232,11 @@ public class TestApp {
                     subscriber = (SubscriberInterface) reg.lookup("Sub" + id);
                     subscriber.get(topic.toString());
                 }
-                catch (RemoteException e) {
+                catch (NotBoundException e) {
                     System.out.println("There is no subscriber with that ID. Try again.");
+                }
+                catch (ConnectException c) {
+                    System.out.println("RMI hasn't been bound yet. (There are no publishers or subscribers in the network)");
                 }
                 break;
             default:

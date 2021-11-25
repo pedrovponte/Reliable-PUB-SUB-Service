@@ -4,13 +4,11 @@ import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
 import java.io.*;
-import java.net.InetSocketAddress;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.ArrayList;
 
 public class Proxy {
     private ZMQ.Socket frontend;
@@ -28,7 +26,6 @@ public class Proxy {
 
     public Proxy() {
         this.exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
-        this.connectedSubs = new HashMap<>();
 
         File f = new File("proxy/proxy.ser");
         if(f.exists() && !f.isDirectory()) {
@@ -41,29 +38,10 @@ public class Proxy {
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
-
         }
         else {
             this.storage = new Storage();
         }
-
-        File f = new File("proxy/proxy.ser");
-        if(f.exists() && !f.isDirectory()) {
-            try {
-                FileInputStream fileInput = new FileInputStream("proxy/proxy.ser");
-                ObjectInputStream inputObj = new ObjectInputStream(fileInput);
-                storage = (Storage) inputObj.readObject();
-                inputObj.close();
-                fileInput.close();
-            } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-
-        }
-        else {
-            this.storage = new Storage();
-        }
-        this.storage = new Storage();
 
         // Prepare our context and sockets
         this.context = new ZContext();
@@ -83,8 +61,6 @@ public class Proxy {
         this.subRequests = this.context.createSocket(SocketType.REP);
         this.subRequests.bind("tcp://localhost:5559");
 
-        this.subChecks = this.context.createSocket(SocketType.PULL);
-        this.subChecks.bind("tcp://localhost:5559");
 
         //  Initialize poll set
         this.poller = this.context.createPoller(5);
@@ -166,9 +142,27 @@ public class Proxy {
             if(this.poller.pollin(3)) {
                 String request = this.subRequests.recvStr(0);
                 String[] args = request.split("//");
-                unsubID = Integer.parseInt(args[1]);
-                unsubFlag = true;
-                this.subRequests.send(("REP_UNSUB//" + unsubID).getBytes(ZMQ.CHARSET));
+
+                switch(args[0]) {
+                    case "REQ_UNSUB":
+                        unsubID = Integer.parseInt(args[1]);
+                        unsubFlag = true;
+                        this.subRequests.send(("REP_UNSUB//" + unsubID).getBytes(ZMQ.CHARSET));
+                        break;
+                    case "REQ_SUBS":
+                        int subID = Integer.parseInt(args[1]);
+                        String topics = "";
+                        List<String> subscribedTopics = storage.getTopicsSubscribedBySubscriber(subID);
+
+                        for (String topic: subscribedTopics) {
+                            topics += topic;
+                            if (subscribedTopics.indexOf(topic) != subscribedTopics.size() - 1)
+                                topics += "//";
+                        }
+
+                        this.subRequests.send(("REP_SUBS//" + topics).getBytes(ZMQ.CHARSET));
+                        break;
+                }
             }
 
             if(this.poller.pollin(4)) {
@@ -184,24 +178,23 @@ public class Proxy {
         }
     }
 
-    public int checkTopics(String topic, int id) {
+    public void checkTopics(String topic, int id) {
         for (String t: this.storage.getTopics().keySet()) {
             if (this.storage.getTopics().get(t).getName().equals(topic)) {
                 if (this.storage.getTopics().get(t).hasSubscriber(id))
                     this.storage.getTopics().get(t).removeSubscriber(id);
                 else {
                     System.out.println("Subscriber " + id + " isn't subscribed to this topic.");
-                    return -1;
+                    return;
                 }
                 if (this.storage.getTopics().get(t).getSubscribers().isEmpty()) {
                     this.storage.getTopics().remove(t);
                     this.storage.getTopicNames().remove(t);
                 }
-                return 0;
+                return;
             }
         }
         System.out.println("Subscriber " + id + " isn't subscribed to this topic.");
-        return -1;
     }
 
     public void handleFrontend(byte[] msgData) {
@@ -210,7 +203,6 @@ public class Proxy {
 
         String topic = message[0];
         String messageT = message[1];
-        String confirmation = "";
 
         if(this.storage.getTopicNames().contains(topic)) {
             this.storage.getTopics().get(topic).addMessage(messageT);
@@ -258,22 +250,6 @@ public class Proxy {
                 unsubID = -1;
             }
         }
-
-        // Get message
-        else if(message[0].equals("0x03")) { // "topic id"
-            String topic = message[1];
-            int id = Integer.parseInt(message[2]);
-
-            if(this.storage.getTopicNames().contains(topic)) {
-                Topic topicObj = this.storage.getTopics().get(topic);
-
-                String topicMessage = topicObj.getMessage(id);
-
-                toSend = topic + " : " + topicMessage;
-
-                this.backend.send(toSend.getBytes());
-            }
-        }
     }
 
     public void handleGet(byte[] msgData) {
@@ -286,7 +262,10 @@ public class Proxy {
 
         if(this.storage.getTopicNames().contains(topic)) { // toSend starts by 1 if has new messages, 0 if not, 2 if not subscriber, 3 if topic doesn't exist
             Topic t = this.storage.getTopics().get(topic);
-            if(t.hasSubscriber(id)) {
+            if (t.getMessages().isEmpty()) {
+                toSend = "4 : " + topic;
+            }
+            else if(t.hasSubscriber(id)) {
                 if(t.checkNext(id)) {
                     String topicMessage = t.getMessage(id);
                     toSend = "1 : " + topic + " : " + topicMessage;
