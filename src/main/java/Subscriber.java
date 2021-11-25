@@ -171,21 +171,21 @@ public class Subscriber implements SubscriberInterface {
 
         if(responseStr[1].equals(topic)) { // response começa por 1 se tiver mensagens, 0 se não tiver mais, 2 se nao for subscritor, 3 se o topico nao existir
             switch (responseStr[0]) {
-                case "0":
+                case "GET_NONEW":
                     System.out.println("Client " + id + " has no new messages to receive on topic '" + topic + "'.");
                     storage.replaceTimeTopic(topic, String.valueOf(System.currentTimeMillis()));
                     break;
-                case "1":
+                case "GET_SUCC":
                     System.out.println("Message for Client " + id + " for topic '" + topic + "': " + responseStr[2]);
                     storage.replaceTimeTopic(topic, String.valueOf(System.currentTimeMillis()));
                     break;
-                case "2":
+                case "GET_UNSUB":
                     System.out.println("Client " + id + " didn't subscribe the topic '" + topic + "'.");
                     break;
-                case "3":
+                case "GET_UNEXIST":
                     System.out.println("Client " + id + " asked for a topic ('" + topic + "') that doesn't exist.");
                     break;
-                case "4":
+                case "GET_EMPTY":
                     System.out.println("Client " + id + " asked for a topic ('" + topic + "') that doesn't messages yet.");
                     break;
             }

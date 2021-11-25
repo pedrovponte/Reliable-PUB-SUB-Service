@@ -117,7 +117,7 @@ public class Proxy {
     };
 
     public void run() {
-        exec.scheduleAtFixedRate(serialize, 5, 15, TimeUnit.SECONDS);
+        exec.scheduleAtFixedRate(serialize, 5, 10, TimeUnit.SECONDS);
         exec.scheduleAtFixedRate(state, 2, 5, TimeUnit.SECONDS);
 
         while(!Thread.currentThread().isInterrupted()) {
@@ -139,7 +139,7 @@ public class Proxy {
             if(this.poller.pollin(2)) {
                 ZFrame frame = ZFrame.recvFrame(this.getSocket);
                 byte[] msgData = frame.getData();
-                handleGet(msgData, 1);
+                handleGet(msgData);
                 frame.destroy();
             }
 
@@ -256,7 +256,7 @@ public class Proxy {
         }
     }
 
-    public void handleGet(byte[] msgData, int tryNr) {
+    public void handleGet(byte[] msgData) {
         String msgString = new String(msgData, 0, msgData.length, ZMQ.CHARSET);
         String[] message = msgString.split("//");
         String toSend = "";
@@ -267,23 +267,23 @@ public class Proxy {
         if(this.storage.getTopicNames().contains(topic)) { // toSend starts by 1 if has new messages, 0 if not, 2 if not subscriber, 3 if topic doesn't exist
             Topic t = this.storage.getTopics().get(topic);
             if (t.getMessages().isEmpty()) {
-                toSend = "4 : " + topic;
+                toSend = "GET_EMPTY : " + topic;
             }
             else if(t.hasSubscriber(id)) {
                 if(t.checkNext(id)) {
                     String topicMessage = t.getMessage(id);
-                    toSend = "1 : " + topic + " : " + topicMessage;
+                    toSend = "GET_SUCC : " + topic + " : " + topicMessage;
                 }
                 else { // no new messages
-                    toSend = "0 : " + topic;
+                    toSend = "GET_NONEW : " + topic;
                 }
             }
             else { // topic not subscribed
-                toSend = "2 : " + topic;
+                toSend = "GET_UNSUB : " + topic;
             }
         }
         else { // topic not exist
-            toSend = "3 : " + topic;
+            toSend = "GET_UNEXIST : " + topic;
         }
 
         this.getSocket.send(toSend.getBytes());
@@ -292,16 +292,11 @@ public class Proxy {
         String request = this.confirmGetSocket.recvStr(0);
 
         if (request == null) {
-            if (tryNr > 3) {
-                System.out.println("Reached max number of tries.");
-            }
-            else
-                this.handleGet(msgData, tryNr + 1);
+            System.out.println("Get Protocol unsuccessful.");
+            return;
         }
 
         String[] args = request.split("//");
-
-        System.out.println("RECEBI");
 
         if (args[0].equals("ACK_GET"))
             this.storage.getTopics().get(topic).updateMessagesForSubscriber(id);
