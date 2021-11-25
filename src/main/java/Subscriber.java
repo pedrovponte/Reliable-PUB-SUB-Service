@@ -53,12 +53,12 @@ public class Subscriber implements SubscriberInterface {
         notifySocket.connect("tcp://*:5559");
         ScheduledThreadPoolExecutor exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
         exec.scheduleAtFixedRate(Subscriber::notifyProxy, 0, 2, TimeUnit.SECONDS);
-        exec.scheduleAtFixedRate(checkTime, 1, 1, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(checkTime, 5, 1, TimeUnit.MINUTES);
         exec.scheduleAtFixedRate(serialize, 5, 10, TimeUnit.SECONDS);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
-                System.out.println("Running Shutdown Hook");
+                // System.out.println("Running Shutdown Hook");
                 exec.execute(serialize);
                 subscriber.close();
                 getSocket.close();
@@ -72,12 +72,12 @@ public class Subscriber implements SubscriberInterface {
         @Override
         public void run() {
             ConcurrentHashMap<String, String> times = storage.getTopicsSubscribed();
-            System.out.println("Checking times...");
+            // System.out.println("Checking times...");
 
             for(String t : times.keySet()) {
                 String time = times.get(t);
 
-                if(System.currentTimeMillis() - Long.parseLong(time) > 60000) { // 5 minutes -> 300000
+                if(System.currentTimeMillis() - Long.parseLong(time) > 300000) { // 5 minutes -> 300000
                     unsubscribe(t);
                 }
             }
@@ -180,8 +180,6 @@ public class Subscriber implements SubscriberInterface {
             return;
         }
 
-        storage.replaceTimeTopic(topic, String.valueOf(System.currentTimeMillis()));
-
         subscriber.setReceiveTimeOut(5000);
         byte[] response = this.getSocket.recv(0); // "topic : message"
 
@@ -196,9 +194,11 @@ public class Subscriber implements SubscriberInterface {
             switch (responseStr[0]) {
                 case "0":
                     System.out.println("Client " + id + " has no new messages to receive on topic '" + topic + "'.");
+                    storage.replaceTimeTopic(topic, String.valueOf(System.currentTimeMillis()));
                     break;
                 case "1":
                     System.out.println("Message for Client " + id + " for topic '" + topic + "': " + responseStr[2]);
+                    storage.replaceTimeTopic(topic, String.valueOf(System.currentTimeMillis()));
                     break;
                 case "2":
                     System.out.println("Client " + id + " didn't subscribe the topic '" + topic + "'.");
