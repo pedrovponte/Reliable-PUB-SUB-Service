@@ -1,14 +1,15 @@
-
-src/Proj_Pub_Sub/.idea/
-
-src/Proj_Pub_Sub/.settings/
-
-src/Proj_Pub_Sub/.classpath
-
-src/Proj_Pub_Sub/.project
 .idea/
 proj1.iml
 pom.xml
 
 target/
+
+.settings/
+
+.classpath
+
+.project
+
+subscribers/
+
 proxy/

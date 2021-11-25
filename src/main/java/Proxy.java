@@ -28,6 +28,24 @@ public class Proxy {
 
     public Proxy() {
         this.exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
+        this.connectedSubs = new HashMap<>();
+
+        File f = new File("proxy/proxy.ser");
+        if(f.exists() && !f.isDirectory()) {
+            try {
+                FileInputStream fileInput = new FileInputStream("proxy/proxy.ser");
+                ObjectInputStream inputObj = new ObjectInputStream(fileInput);
+                storage = (Storage) inputObj.readObject();
+                inputObj.close();
+                fileInput.close();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+
+        }
+        else {
+            this.storage = new Storage();
+        }
 
         File f = new File("proxy/proxy.ser");
         if(f.exists() && !f.isDirectory()) {
@@ -64,6 +82,9 @@ public class Proxy {
 
         this.subRequests = this.context.createSocket(SocketType.REP);
         this.subRequests.bind("tcp://localhost:5559");
+
+        this.subChecks = this.context.createSocket(SocketType.PULL);
+        this.subChecks.bind("tcp://localhost:5559");
 
         //  Initialize poll set
         this.poller = this.context.createPoller(5);
@@ -189,6 +210,7 @@ public class Proxy {
 
         String topic = message[0];
         String messageT = message[1];
+        String confirmation = "";
 
         if(this.storage.getTopicNames().contains(topic)) {
             this.storage.getTopics().get(topic).addMessage(messageT);
@@ -262,22 +284,22 @@ public class Proxy {
         String topic = message[0];
         int id = Integer.parseInt(message[1]);
 
-        if(this.storage.getTopicNames().contains(topic)) { // toSend começa por 1 se tiver mensagens, 0 se não tiver mais, 2 se nao for subscritor, 3 se o topico nao existir
+        if(this.storage.getTopicNames().contains(topic)) { // toSend starts by 1 if has new messages, 0 if not, 2 if not subscriber, 3 if topic doesn't exist
             Topic t = this.storage.getTopics().get(topic);
             if(t.hasSubscriber(id)) {
                 if(t.checkNext(id)) {
                     String topicMessage = t.getMessage(id);
                     toSend = "1 : " + topic + " : " + topicMessage;
                 }
-                else {
+                else { // no new messages
                     toSend = "0 : " + topic;
                 }
             }
-            else {
+            else { // topic not subscribed
                 toSend = "2 : " + topic;
             }
         }
-        else {
+        else { // topic not exist
             toSend = "3 : " + topic;
         }
 

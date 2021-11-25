@@ -196,7 +196,7 @@ public class TestApp {
                     }
                 }
 
-                if (args.length < 3 || rightBracketCnt != 2 || leftBracketCnt != 2) {
+                if (args.length < 3 || rightBracketCnt != 1 || leftBracketCnt != 1) {
                     System.out.println("GET USAGE: get <id> [<topic>]");
                     return;
                 }

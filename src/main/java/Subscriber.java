@@ -2,14 +2,16 @@ import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
+import java.io.*;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.ExportException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -24,25 +26,98 @@ public class Subscriber implements SubscriberInterface {
 
     public Subscriber(int idS) {
         id = idS;
+
+        File f = new File("subscribers/subscriber_" + id + ".ser");
+        if(f.exists() && !f.isDirectory()) {
+            try {
+                FileInputStream fileInput = new FileInputStream("subscribers/subscriber_" + id + ".ser");
+                ObjectInputStream inputObj = new ObjectInputStream(fileInput);
+                storage = (StorageSub) inputObj.readObject();
+                inputObj.close();
+                fileInput.close();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+
+        }
+        else {
+            storage = new StorageSub();
+        }
+
         this.context = new ZContext();
         topicsSubscribed = new ArrayList<>();
         subscriber = this.context.createSocket(SocketType.SUB);
         this.getSocket = this.context.createSocket(SocketType.REQ);
-        unsubSocket = this.context.createSocket(SocketType.REQ);
-        subscriber.connect("tcp://*:5556");
+        notifySocket = this.context.createSocket(SocketType.PUSH);
+        this.subscriber.connect("tcp://*:5556");
         this.getSocket.connect("tcp://*:5555");
-        unsubSocket.connect("tcp://*:5559");
+        notifySocket.connect("tcp://*:5559");
+        ScheduledThreadPoolExecutor exec = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(128);
+        exec.scheduleAtFixedRate(Subscriber::notifyProxy, 0, 2, TimeUnit.SECONDS);
+        exec.scheduleAtFixedRate(checkTime, 5, 1, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(serialize, 5, 10, TimeUnit.SECONDS);
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                // System.out.println("Running Shutdown Hook");
+                exec.execute(serialize);
+                subscriber.close();
+                getSocket.close();
+                notifySocket.close();
+            }
+        });
     }
 
-    private String generatePort(int seed) {
-        Random rand = new Random(seed);
-        int port = rand.nextInt(9999);
-        System.out.println(port);
-        return String.valueOf(port);
-    }
 
-    public static void handler() {
-        System.out.println("goods");
+    Runnable checkTime = new Runnable() {
+        @Override
+        public void run() {
+            ConcurrentHashMap<String, String> times = storage.getTopicsSubscribed();
+            // System.out.println("Checking times...");
+
+            for(String t : times.keySet()) {
+                String time = times.get(t);
+
+                if(System.currentTimeMillis() - Long.parseLong(time) > 300000) { // 5 minutes -> 300000
+                    unsubscribe(t);
+                }
+            }
+        }
+    };
+
+    Runnable serialize = new Runnable() {
+        public void run() {
+            System.out.println("Serializing...");
+            String filename = "subscribers/subscriber_" + id + ".ser";
+
+            File file = new File(filename);
+            if (!file.exists()) {
+                file.getParentFile().mkdirs();
+                try {
+                    file.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            try {
+                FileOutputStream fileStream = new FileOutputStream(filename);
+                ObjectOutputStream outputStream = new ObjectOutputStream(fileStream);
+                outputStream.writeObject(storage);
+                outputStream.close();
+                fileStream.close();
+            } catch (IOException e ) {
+                e.printStackTrace();
+            }
+
+        }
+    };
+
+    public static void notifyProxy() {
+        if (storage.getTopicsSubscribed().isEmpty())
+            return;
+        System.out.println("Notifying Proxy...");
+        String msg = String.valueOf(id);
+        notifySocket.send(msg.getBytes());
     }
 
     // subscribe a topic
@@ -62,15 +137,15 @@ public class Subscriber implements SubscriberInterface {
         }
 
         subscriber.setReceiveTimeOut(5000);
-        byte[] response = subscriber.recv(0);
+        String response = this.subscriber.recvStr();
 
         if(response == null) {
             System.out.println("Failed to receive subscribe confirmation.");
             return;
         }
 
-        System.out.println("Topic " + topic + " subscribed successfully.");
-        topicsSubscribed.add(topic);
+        System.out.println("Topic " + topic + " successfully subscribed.");
+        storage.addTopic(topic, String.valueOf(System.currentTimeMillis()));
     }
 
     // unsubscribe a topic
@@ -88,7 +163,7 @@ public class Subscriber implements SubscriberInterface {
         if(response == null) {
             System.out.println("Failed to receive unsubscribe confirmation.");
             return;
-        }
+        }*/
 
         String message = topic + "//" + id;
         System.out.println("Unsubscribing topic " + topic);
@@ -126,9 +201,11 @@ public class Subscriber implements SubscriberInterface {
             switch (responseStr[0]) {
                 case "0":
                     System.out.println("Client " + id + " has no new messages to receive on topic '" + topic + "'.");
+                    storage.replaceTimeTopic(topic, String.valueOf(System.currentTimeMillis()));
                     break;
                 case "1":
                     System.out.println("Message for Client " + id + " for topic '" + topic + "': " + responseStr[2]);
+                    storage.replaceTimeTopic(topic, String.valueOf(System.currentTimeMillis()));
                     break;
                 case "2":
                     System.out.println("Client " + id + " didn't subscribe the topic '" + topic + "'.");
