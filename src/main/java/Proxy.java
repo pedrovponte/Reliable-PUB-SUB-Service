@@ -117,7 +117,7 @@ public class Proxy {
     };
 
     public void run() {
-        exec.scheduleAtFixedRate(serialize, 5, 10, TimeUnit.SECONDS);
+        exec.scheduleAtFixedRate(serialize, 5, 15, TimeUnit.SECONDS);
         exec.scheduleAtFixedRate(state, 2, 5, TimeUnit.SECONDS);
 
         while(!Thread.currentThread().isInterrupted()) {

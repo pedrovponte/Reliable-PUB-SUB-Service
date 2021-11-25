@@ -145,7 +145,7 @@ public class Subscriber implements SubscriberInterface {
             return;
         }
 
-        topicsSubscribed.remove(topic);
+        storage.removeTopic(topic);
         System.out.println("Topic " + topic + " unsubscribed successfully.");
     }
 
