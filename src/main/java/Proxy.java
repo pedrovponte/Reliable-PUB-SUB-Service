@@ -16,10 +16,12 @@ public class Proxy {
     private ZMQ.Socket frontend;
     private ZMQ.Socket backend;
     private ZMQ.Socket getSocket;
-    private ZMQ.Socket pubConfirmations;
-    private ZMQ.Socket subChecks;
+    private ZMQ.Socket pubRequests;
+    private ZMQ.Socket subRequests;
     private Storage storage;
-    private HashMap<Integer, Boolean> connectedSubs;
+    private boolean unsubFlag = false;
+    private int putFlag = -1;
+    private int unsubID = -1;
     private ScheduledThreadPoolExecutor exec;
     private ZMQ.Poller poller;
     private final ZContext context;
@@ -45,6 +47,24 @@ public class Proxy {
             this.storage = new Storage();
         }
 
+        File f = new File("proxy/proxy.ser");
+        if(f.exists() && !f.isDirectory()) {
+            try {
+                FileInputStream fileInput = new FileInputStream("proxy/proxy.ser");
+                ObjectInputStream inputObj = new ObjectInputStream(fileInput);
+                storage = (Storage) inputObj.readObject();
+                inputObj.close();
+                fileInput.close();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+
+        }
+        else {
+            this.storage = new Storage();
+        }
+        this.storage = new Storage();
+
         // Prepare our context and sockets
         this.context = new ZContext();
         this.frontend = this.context.createSocket(SocketType.SUB);
@@ -57,18 +77,22 @@ public class Proxy {
         this.getSocket = this.context.createSocket(SocketType.REP);
         this.getSocket.bind("tcp://localhost:5555");
 
-        this.pubConfirmations = this.context.createSocket(SocketType.PUSH);
-        this.pubConfirmations.bind("tcp://localhost:5558");
+        this.pubRequests = this.context.createSocket(SocketType.REP);
+        this.pubRequests.bind("tcp://localhost:5558");
+
+        this.subRequests = this.context.createSocket(SocketType.REP);
+        this.subRequests.bind("tcp://localhost:5559");
 
         this.subChecks = this.context.createSocket(SocketType.PULL);
         this.subChecks.bind("tcp://localhost:5559");
 
         //  Initialize poll set
-        this.poller = this.context.createPoller(4);
+        this.poller = this.context.createPoller(5);
         this.poller.register(this.frontend, ZMQ.Poller.POLLIN);
         this.poller.register(this.backend, ZMQ.Poller.POLLIN);
         this.poller.register(this.getSocket, ZMQ.Poller.POLLIN);
-        this.poller.register(this.subChecks, ZMQ.Poller.POLLIN);
+        this.poller.register(this.subRequests, ZMQ.Poller.POLLIN);
+        this.poller.register(this.pubRequests, ZMQ.Poller.POLLIN);
     }
 
     Runnable serialize = new Runnable() {
@@ -98,41 +122,27 @@ public class Proxy {
         }
     };
 
-    Runnable checkSubscribers = new Runnable() {
+    Runnable state = new Runnable() {
         public void run() {
-            for (Integer id: connectedSubs.keySet()) {
-                if (!connectedSubs.get(id)) {
-                    System.out.println("Subscriber " + id + " disconnected...");
-                    connectedSubs.remove(id);
+            System.out.println("\nNUMBER OF TOPICS: " + storage.getTopicNames().size());
+            System.out.println("TOPICS AND SUBSCRIBERS:");
+            for (String t : storage.getTopics().keySet()) {
+                String ids = "";
+                for (int id : storage.getTopics().get(t).getSubscribers()) {
+                    ids += id + " ";
                 }
+                System.out.println(storage.getTopics().get(t).getName() + " -> [ " + ids + "]");
             }
-
-            if (connectedSubs.isEmpty()) {
-                storage.getTopics().clear();
-                return;
-            }
-
-            for (String t: storage.getTopics().keySet()) {
-                for (Integer id: storage.getTopics().get(t).getSubscribers()) {
-                    if (!connectedSubs.containsKey(id)) {
-                        storage.getTopics().get(t).removeSubscriber(id);
-                    }
-                }
-            }
-
-            connectedSubs.replaceAll((i, v) -> Boolean.FALSE);
         }
     };
 
     public void run() {
         exec.scheduleAtFixedRate(serialize, 5, 10, TimeUnit.SECONDS);
-        exec.scheduleAtFixedRate(checkSubscribers, 0, 5, TimeUnit.SECONDS);
+        exec.scheduleAtFixedRate(state, 2, 5, TimeUnit.SECONDS);
 
         while(!Thread.currentThread().isInterrupted()) {
-            System.out.println("There is/are currently " + storage.getTopicNames().size() + " topic(s)");
             this.poller.poll();
             if(this.poller.pollin(0)) {
-                //System.out.println("INSIDE POLLER FRONTEND");
                 ZFrame frame = ZFrame.recvFrame(this.frontend);
                 byte[] msgData = frame.getData();
                 handleFrontend(msgData);
@@ -140,7 +150,6 @@ public class Proxy {
             }
 
             if(this.poller.pollin(1)) {
-                //System.out.println("INSIDE POLLER BACKEND");
                 ZFrame frame = ZFrame.recvFrame(this.backend);
                 byte[] msgData = frame.getData();
                 handleBackend(msgData);
@@ -148,7 +157,6 @@ public class Proxy {
             }
 
             if(this.poller.pollin(2)) {
-                //System.out.println("INSIDE POLLER GET");
                 ZFrame frame = ZFrame.recvFrame(this.getSocket);
                 byte[] msgData = frame.getData();
                 handleGet(msgData);
@@ -156,14 +164,22 @@ public class Proxy {
             }
 
             if(this.poller.pollin(3)) {
-                ZFrame frame = ZFrame.recvFrame(this.subChecks);
-                byte[] msgData = frame.getData();
-                String subID = new String(msgData, 0, msgData.length, ZMQ.CHARSET);
+                String request = this.subRequests.recvStr(0);
+                String[] args = request.split("//");
+                unsubID = Integer.parseInt(args[1]);
+                unsubFlag = true;
+                this.subRequests.send(("REP_UNSUB//" + unsubID).getBytes(ZMQ.CHARSET));
+            }
 
-                connectedSubs.put(Integer.parseInt(subID), Boolean.TRUE);
-
-                //handleFrontend(msgData);
-                frame.destroy();
+            if(this.poller.pollin(4)) {
+                this.pubRequests.recvStr(0);
+                if (putFlag == 1)
+                    this.pubRequests.send("PUT_ACK_SUCC".getBytes(ZMQ.CHARSET));
+                else if (putFlag == 0)
+                    this.pubRequests.send("PUT_ACK_DENY".getBytes(ZMQ.CHARSET));
+                else
+                    this.pubRequests.send("PUT_NACK".getBytes(ZMQ.CHARSET));
+                putFlag = -1;
             }
         }
     }
@@ -198,20 +214,17 @@ public class Proxy {
 
         if(this.storage.getTopicNames().contains(topic)) {
             this.storage.getTopics().get(topic).addMessage(messageT);
-            System.out.println("Message added succesfully to topic " + topic);
-            confirmation = "Message has been successfully published to topic " + topic;
+            System.out.println("Message added successfully to topic " + topic);
+            putFlag = 1;
         }
-        else {
-            confirmation = "No one has subscribed to this topic yet. Message discarded.";
-        }
-
-        this.pubConfirmations.send(confirmation.getBytes(ZMQ.CHARSET));
+        else putFlag = 0;
     }
 
     public void handleBackend(byte[] msgData) {
         byte b = msgData[0];
         String msgString = new String(msgData, 1, msgData.length - 1, ZMQ.CHARSET);
         String[] message = msgString.split("//");
+        String toSend = "";
 
         // Subscribe message
         if(b == 1) { // "topic//id"
@@ -231,7 +244,6 @@ public class Proxy {
             System.out.println("Subscriber " + id +  " successfully subscribed topic " + topic);
 
             this.backend.send(msgString + "Topic " + topic + " successfully subscribed.");
-
         }
 
         // Unsubscribe message
@@ -239,19 +251,28 @@ public class Proxy {
             String topic = message[0];
             int id = Integer.parseInt(message[1]);
 
-            //this.topics.get(topic).removeSubscriber(id);
-            if (this.checkTopics(topic, id) < 0) {
-                this.backend.send(msgString + "Subscriber " + id + " isn't subscribed to topic " + topic);
-                return;
+            if (unsubFlag && unsubID == id) {
+                System.out.println("Subscriber " + id + " successfully unsubscribed topic " + topic);
+                this.checkTopics(topic, id);
+                unsubFlag = false;
+                unsubID = -1;
             }
-
-            System.out.println("Subscriber " + id +  " successfully unsubscribed topic " + topic);
-
-            this.backend.send(msgString + "Topic " + topic + " successfully unsubscribed.");
         }
 
-        else {
-            System.out.println("Invalid message");
+        // Get message
+        else if(message[0].equals("0x03")) { // "topic id"
+            String topic = message[1];
+            int id = Integer.parseInt(message[2]);
+
+            if(this.storage.getTopicNames().contains(topic)) {
+                Topic topicObj = this.storage.getTopics().get(topic);
+
+                String topicMessage = topicObj.getMessage(id);
+
+                toSend = topic + " : " + topicMessage;
+
+                this.backend.send(toSend.getBytes());
+            }
         }
     }
 

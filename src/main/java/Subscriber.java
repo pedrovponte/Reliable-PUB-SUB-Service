@@ -19,10 +19,10 @@ import java.util.concurrent.TimeUnit;
 public class Subscriber implements SubscriberInterface {
     private ZMQ.Socket subscriber;
     private ZMQ.Socket getSocket;
-    private static ZMQ.Socket notifySocket;
+    private ZMQ.Socket unsubSocket;
     private static int id;
-    private final ZContext context;
-    private static StorageSub storage;
+    private ZContext context;
+    private static List<String> topicsSubscribed;
 
     public Subscriber(int idS) {
         id = idS;
@@ -45,7 +45,8 @@ public class Subscriber implements SubscriberInterface {
         }
 
         this.context = new ZContext();
-        this.subscriber = this.context.createSocket(SocketType.SUB);
+        topicsSubscribed = new ArrayList<>();
+        subscriber = this.context.createSocket(SocketType.SUB);
         this.getSocket = this.context.createSocket(SocketType.REQ);
         notifySocket = this.context.createSocket(SocketType.PUSH);
         this.subscriber.connect("tcp://*:5556");
@@ -121,11 +122,16 @@ public class Subscriber implements SubscriberInterface {
 
     // subscribe a topic
     public void subscribe(String topic) {
+        if (topicsSubscribed.contains(topic)) {
+            System.out.println("Already subscribed to this topic.");
+            return;
+        }
+
         System.out.println("Subscribing " + topic + "...");
         // Construct subscribe message: "topic//id"
         String message = topic + "//" + id;
 
-        if(!this.subscriber.subscribe(message.getBytes(ZMQ.CHARSET))) {
+        if(!subscriber.subscribe(message.getBytes(ZMQ.CHARSET))) {
             System.out.println("Failed to subscribe topic '" + topic + "'.");
             return;
         }
@@ -145,29 +151,30 @@ public class Subscriber implements SubscriberInterface {
     // unsubscribe a topic
     public void unsubscribe(String topic) {
         // Construct subscribe message: "topic//id"
-        String message = topic + "//" + id;
-
-        System.out.println("Unsubscribing topic " + topic + "...");
-
-        if (!storage.getTopics().contains(topic)) {
-            System.out.println("Subscriber " + id + " not subscribed to topic " + topic + ".");
+        if (!topicsSubscribed.contains(topic)) {
+            System.out.println("Not subscribed to this topic.");
             return;
         }
+        unsubSocket.send(("UNSUB_REQ//" + id).getBytes());
 
-        if(!this.subscriber.unsubscribe(message.getBytes())) {
-            System.out.println("Failed to unsubscribe topic '" + topic + "'.");
-            return;
-        }
-
-        /*String response = this.subscriber.recvStr();
+        unsubSocket.setReceiveTimeOut(5000);
+        byte[] response = unsubSocket.recv(0);
 
         if(response == null) {
             System.out.println("Failed to receive unsubscribe confirmation.");
             return;
         }*/
 
+        String message = topic + "//" + id;
+        System.out.println("Unsubscribing topic " + topic);
+
+        if(!subscriber.unsubscribe(message.getBytes())) {
+            System.out.println("Failed to unsubscribe topic '" + topic + "'.");
+            return;
+        }
+
+        topicsSubscribed.remove(topic);
         System.out.println("Topic " + topic + " unsubscribed successfully.");
-        storage.removeTopic(topic);
     }
 
     // to consume a message from a topic
@@ -216,15 +223,15 @@ public class Subscriber implements SubscriberInterface {
     public static void main(String[] args) throws RemoteException {
         if (args.length < 1) System.out.println("Please specify an (unique) ID for this subscriber");
         try {
+            Registry rmiRegistry = LocateRegistry.createRegistry(1099);
             Subscriber obj = new Subscriber(Integer.parseInt(args[0])); // user passa port a conectar?
             SubscriberInterface stub = (SubscriberInterface) UnicastRemoteObject.exportObject(obj, 0);
-            Registry rmiRegistry = LocateRegistry.createRegistry(1099);
             rmiRegistry.rebind("Sub" + args[0], stub);
             System.out.printf("Subscriber %s ready\n", args[0]);
         } catch (ExportException f) {
+            Registry rmiRegistry = LocateRegistry.getRegistry(1099);
             Subscriber obj = new Subscriber(Integer.parseInt(args[0]));
             SubscriberInterface stub = (SubscriberInterface) UnicastRemoteObject.exportObject(obj, 0);
-            Registry rmiRegistry = LocateRegistry.getRegistry(1099);
             rmiRegistry.rebind("Sub" + args[0], stub);
             System.out.printf("Subscriber %s ready\n", args[0]);
         }

@@ -12,15 +12,17 @@ import java.util.Arrays;
 
 public class Publisher implements PublisherInterface {
     private ZMQ.Socket publisher;
-    private final ZContext context;
+    private ZContext context;
+    private static int id;
     private ZMQ.Socket confirmations;
 
     public Publisher(int idP) {
         context = new ZContext();
         this.publisher = context.createSocket(SocketType.XPUB); // or PUB?
         this.publisher.connect("tcp://*:5557");
+        id = idP;
 
-        this.confirmations = context.createSocket(SocketType.PULL);
+        this.confirmations = context.createSocket(SocketType.REQ);
         this.confirmations.connect("tcp://localhost:5558");
     }
 
@@ -33,12 +35,21 @@ public class Publisher implements PublisherInterface {
             return;
         }
 
-        System.out.println("Message Sent: " + to_send);
+        this.confirmations.send(("PUT_" + topic).getBytes(ZMQ.CHARSET));
 
-        byte[] a = this.confirmations.recv(0);
-        String reply = new String(a);
+        String reply = this.confirmations.recvStr(0);
 
-        System.out.println(reply);
+        switch(reply) {
+            case "PUT_ACK_SUCC":
+                System.out.println("Message added successfully to topic " + topic);
+                break;
+            case "PUT_ACK_DENY":
+                System.out.println("There is no one subscribed to topic " + topic + ". Message discarded");
+                break;
+            case "PUT_NACK":
+                System.out.println("Failed to add message to topic " + topic);
+                break;
+        }
     }
 
     public static void main(String[] args) throws Exception {
