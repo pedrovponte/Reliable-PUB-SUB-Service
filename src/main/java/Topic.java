@@ -1,8 +1,9 @@
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Topic {
+public class Topic implements Serializable {
     private String name;
     private int messageId;
     private ArrayList<Integer> subscribers;
@@ -41,9 +42,9 @@ public class Topic {
         this.subscribers.add(id);
         this.subsLastMessage.put(id, this.messageId);
         this.subsLastMessageIds.add(this.messageId);
-        System.out.println("Subscribers: " + subscribers);
+        /*System.out.println("Subscribers: " + subscribers);
         System.out.println("Subs Last Message: " + this.subsLastMessage);
-        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);
+        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);*/
     }
 
     public void removeSubscriber(int id) {
@@ -56,9 +57,9 @@ public class Topic {
         this.subsLastMessage.remove(id);
         this.subsLastMessageIds.remove(Integer.valueOf(messageIdSub));
 
-        System.out.println("Subscribers: " + subscribers);
+        /*System.out.println("Subscribers: " + subscribers);
         System.out.println("Subs Last Message: " + this.subsLastMessage);
-        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);
+        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);*/
     }
 
     public void addMessage(String message) {
@@ -101,9 +102,9 @@ public class Topic {
         this.subsLastMessageIds.remove(Integer.valueOf(lastSendMessageId));
         this.subsLastMessageIds.add(lastSendMessageId + 1);
 
-        System.out.println("Subscribers: " + subscribers);
+        /*System.out.println("Subscribers: " + subscribers);
         System.out.println("Subs Last Message: " + this.subsLastMessage);
-        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);
+        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);*/
 
         this.removeMessage();
 
