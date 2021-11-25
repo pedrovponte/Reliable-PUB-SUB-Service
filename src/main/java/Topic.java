@@ -94,22 +94,17 @@ public class Topic implements Serializable {
 
     public String getMessage(int subId) {
         int lastSendMessageId = this.subsLastMessage.get(subId);
-
-//        if(lastSendMessageId >= Collections.max(this.messagesIds)) {
-//            return null;
-//        }
-
-        this.subsLastMessage.replace(subId, lastSendMessageId + 1);
         String message = this.messages.get(lastSendMessageId + 1);
+
+        return message;
+    }
+
+    public void updateMessagesForSubscriber(int subId) {
+        int lastSendMessageId = this.subsLastMessage.get(subId);
+        this.subsLastMessage.replace(subId, lastSendMessageId + 1);
         this.subsLastMessageIds.remove(Integer.valueOf(lastSendMessageId));
         this.subsLastMessageIds.add(lastSendMessageId + 1);
 
-        /*System.out.println("Subscribers: " + subscribers);
-        System.out.println("Subs Last Message: " + this.subsLastMessage);
-        System.out.println("Subs Last Message Ids: " + this.subsLastMessageIds);*/
-
         this.removeMessage();
-
-        return message;
     }
 }

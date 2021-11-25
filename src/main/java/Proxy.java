@@ -14,6 +14,7 @@ public class Proxy {
     private ZMQ.Socket frontend;
     private ZMQ.Socket backend;
     private ZMQ.Socket getSocket;
+    private ZMQ.Socket confirmGetSocket;
     private ZMQ.Socket pubRequests;
     private ZMQ.Socket subRequests;
     private Storage storage;
@@ -60,6 +61,9 @@ public class Proxy {
 
         this.subRequests = this.context.createSocket(SocketType.REP);
         this.subRequests.bind("tcp://localhost:5559");
+
+        this.confirmGetSocket = this.context.createSocket(SocketType.PULL);
+        this.confirmGetSocket.bind("tcp://localhost:5554");
 
 
         //  Initialize poll set
@@ -135,7 +139,7 @@ public class Proxy {
             if(this.poller.pollin(2)) {
                 ZFrame frame = ZFrame.recvFrame(this.getSocket);
                 byte[] msgData = frame.getData();
-                handleGet(msgData);
+                handleGet(msgData, 1);
                 frame.destroy();
             }
 
@@ -252,7 +256,7 @@ public class Proxy {
         }
     }
 
-    public void handleGet(byte[] msgData) {
+    public void handleGet(byte[] msgData, int tryNr) {
         String msgString = new String(msgData, 0, msgData.length, ZMQ.CHARSET);
         String[] message = msgString.split("//");
         String toSend = "";
@@ -283,6 +287,24 @@ public class Proxy {
         }
 
         this.getSocket.send(toSend.getBytes());
+
+        this.confirmGetSocket.setReceiveTimeOut(5000);
+        String request = this.confirmGetSocket.recvStr(0);
+
+        if (request == null) {
+            if (tryNr > 3) {
+                System.out.println("Reached max number of tries.");
+            }
+            else
+                this.handleGet(msgData, tryNr + 1);
+        }
+
+        String[] args = request.split("//");
+
+        System.out.println("RECEBI");
+
+        if (args[0].equals("ACK_GET"))
+            this.storage.getTopics().get(topic).updateMessagesForSubscriber(id);
     }
 
     public static void main(String[] args) {

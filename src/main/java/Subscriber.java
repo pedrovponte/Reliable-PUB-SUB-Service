@@ -21,6 +21,7 @@ public class Subscriber implements SubscriberInterface {
     private ZMQ.Socket subscriber;
     private ZMQ.Socket getSocket;
     private ZMQ.Socket reqSocket;
+    private ZMQ.Socket confirmGetSocket;
     private int id;
     private ZContext context;
     private StorageSub storage;
@@ -34,6 +35,8 @@ public class Subscriber implements SubscriberInterface {
         subscriber = this.context.createSocket(SocketType.SUB);
         this.getSocket = this.context.createSocket(SocketType.REQ);
         reqSocket = this.context.createSocket(SocketType.REQ);
+        this.confirmGetSocket = this.context.createSocket(SocketType.PUSH);
+        this.confirmGetSocket.connect("tcp://*:5554");
         this.subscriber.connect("tcp://*:5556");
         this.getSocket.connect("tcp://*:5555");
         reqSocket.connect("tcp://*:5559");
@@ -190,6 +193,8 @@ public class Subscriber implements SubscriberInterface {
         else {
             System.out.println("Client " + id + " received a message for a different topic that didn't ask.");
         }
+
+        this.confirmGetSocket.send(("ACK_GET//" + id).getBytes());
     }
 
     public static void main(String[] args) throws RemoteException {
