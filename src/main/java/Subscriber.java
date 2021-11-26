@@ -50,6 +50,7 @@ public class Subscriber implements SubscriberInterface {
                 subscriber.close();
                 getSocket.close();
                 reqSocket.close();
+                confirmGetSocket.close();
             }
         });
 

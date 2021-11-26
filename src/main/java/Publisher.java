@@ -24,6 +24,14 @@ public class Publisher implements PublisherInterface {
 
         this.confirmations = context.createSocket(SocketType.REQ);
         this.confirmations.connect("tcp://localhost:5558");
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                // System.out.println("Running Shutdown Hook");
+                publisher.close();
+                confirmations.close();
+            }
+        });
     }
 
     public void put(String topic, String message) {

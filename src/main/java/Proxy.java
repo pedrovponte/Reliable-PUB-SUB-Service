@@ -73,6 +73,18 @@ public class Proxy {
         this.poller.register(this.getSocket, ZMQ.Poller.POLLIN);
         this.poller.register(this.subRequests, ZMQ.Poller.POLLIN);
         this.poller.register(this.pubRequests, ZMQ.Poller.POLLIN);
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                // System.out.println("Running Shutdown Hook");
+                frontend.close();
+                backend.close();
+                getSocket.close();
+                subRequests.close();
+                pubRequests.close();
+                confirmGetSocket.close();
+            }
+        });
     }
 
     Runnable serialize = new Runnable() {
