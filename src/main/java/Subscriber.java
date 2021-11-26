@@ -201,21 +201,12 @@ public class Subscriber implements SubscriberInterface {
 
     public static void main(String[] args) throws RemoteException {
         if (args.length < 1) System.out.println("Please specify an (unique) ID for this subscriber");
-        try {
-            Registry rmiRegistry = LocateRegistry.createRegistry(1099);
-            Subscriber obj = new Subscriber(Integer.parseInt(args[0])); // user passa port a conectar?
-            SubscriberInterface stub = (SubscriberInterface) UnicastRemoteObject.exportObject(obj, 0);
-            rmiRegistry.rebind("Sub" + args[0], stub);
-            System.out.printf("Subscriber %s ready\n", args[0]);
-        } catch (ExportException f) {
-            Registry rmiRegistry = LocateRegistry.getRegistry(1099);
-            Subscriber obj = new Subscriber(Integer.parseInt(args[0]));
-            SubscriberInterface stub = (SubscriberInterface) UnicastRemoteObject.exportObject(obj, 0);
-            rmiRegistry.rebind("Sub" + args[0], stub);
-            System.out.printf("Subscriber %s ready\n", args[0]);
-        }
-        catch (RemoteException e) {
-            e.printStackTrace();
-        }
+        Registry rmiRegistry = LocateRegistry.getRegistry(1099);
+        Subscriber obj = new Subscriber(Integer.parseInt(args[0]));
+        SubscriberInterface stub = (SubscriberInterface) UnicastRemoteObject.exportObject(obj, 0);
+        rmiRegistry.rebind("Sub" + args[0], stub);
+        System.out.printf("Subscriber %s ready\n", args[0]);
+
+        System.out.println("DISCLAIMER: If you subscribe to a topic but don't consume messages over a large period of time (5 min.) you will be automatically unsubscribed.");
     }
 }

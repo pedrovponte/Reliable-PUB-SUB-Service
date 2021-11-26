@@ -4,6 +4,9 @@ import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
 import java.io.*;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -317,7 +320,7 @@ public class Proxy {
             this.storage.getTopics().get(topic).updateMessagesForSubscriber(id);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws RemoteException {
         Proxy proxy = new Proxy();
         proxy.run();
     }
