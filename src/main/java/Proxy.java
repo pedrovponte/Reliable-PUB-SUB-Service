@@ -210,7 +210,7 @@ public class Proxy {
 
         if(this.storage.getTopicNames().contains(topic)) {
             this.storage.getTopics().get(topic).addMessage(messageT);
-            System.out.println("Message added successfully to topic " + topic);
+            System.out.println("Message added successfully to topic: " + topic);
             putFlag = 1;
         }
         else putFlag = 0;
@@ -237,7 +237,7 @@ public class Proxy {
                 this.storage.getTopicNames().add(topic);
             }
 
-            System.out.println("Subscriber " + id +  " successfully subscribed topic " + topic);
+            System.out.println("Subscriber " + id +  " successfully subscribed topic: " + topic);
 
             this.backend.send(msgString + "Topic " + topic + " successfully subscribed.");
         }
@@ -248,7 +248,7 @@ public class Proxy {
             int id = Integer.parseInt(message[1]);
 
             if (unsubFlag && unsubID == id) {
-                System.out.println("Subscriber " + id + " successfully unsubscribed topic " + topic);
+                System.out.println("Subscriber " + id + " successfully unsubscribed topic: " + topic);
                 this.checkTopics(topic, id);
                 unsubFlag = false;
                 unsubID = -1;
@@ -264,7 +264,9 @@ public class Proxy {
         String topic = message[0];
         int id = Integer.parseInt(message[1]);
 
-        if(this.storage.getTopicNames().contains(topic)) { // toSend starts by 1 if has new messages, 0 if not, 2 if not subscriber, 3 if topic doesn't exist
+        boolean hasMessage = false;
+
+        if(this.storage.getTopicNames().contains(topic)) {
             Topic t = this.storage.getTopics().get(topic);
             if (t.getMessages().isEmpty()) {
                 toSend = "GET_EMPTY : " + topic;
@@ -273,6 +275,7 @@ public class Proxy {
                 if(t.checkNext(id)) {
                     String topicMessage = t.getMessage(id);
                     toSend = "GET_SUCC : " + topic + " : " + topicMessage;
+                    hasMessage = true;
                 }
                 else { // no new messages
                     toSend = "GET_NONEW : " + topic;
@@ -298,7 +301,7 @@ public class Proxy {
 
         String[] args = request.split("//");
 
-        if (args[0].equals("ACK_GET"))
+        if (args[0].equals("ACK_GET") && hasMessage)
             this.storage.getTopics().get(topic).updateMessagesForSubscriber(id);
     }
 

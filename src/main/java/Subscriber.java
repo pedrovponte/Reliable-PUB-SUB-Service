@@ -86,6 +86,7 @@ public class Subscriber implements SubscriberInterface {
                 String time = times.get(t);
 
                 if(System.currentTimeMillis() - Long.parseLong(time) > 300000) { // 5 minutes -> 300000
+                    System.out.println("Exceeded 5 minutes without any get request for topic: " + t + ". Unsubscribing topic...");
                     unsubscribe(t);
                 }
             }
@@ -104,7 +105,7 @@ public class Subscriber implements SubscriberInterface {
         String message = topic + "//" + id;
 
         if(!subscriber.subscribe(message.getBytes(ZMQ.CHARSET))) {
-            System.out.println("Failed to subscribe topic '" + topic + "'.");
+            System.out.println("Failed to subscribe topic: '" + topic + "'.");
             return;
         }
 
@@ -141,7 +142,7 @@ public class Subscriber implements SubscriberInterface {
         System.out.println("Unsubscribing topic " + topic);
 
         if(!subscriber.unsubscribe(message.getBytes())) {
-            System.out.println("Failed to unsubscribe topic '" + topic + "'.");
+            System.out.println("Failed to unsubscribe topic: '" + topic + "'.");
             return;
         }
 
@@ -155,7 +156,7 @@ public class Subscriber implements SubscriberInterface {
         String message = topic + "//" + id;
 
         if(!this.getSocket.send(message.getBytes())) {
-            System.out.println("Failed to send get message to proxy for topic '" + topic + "'.");
+            System.out.println("Failed to send get message to proxy for topic: '" + topic + "'.");
             return;
         }
 
@@ -163,7 +164,7 @@ public class Subscriber implements SubscriberInterface {
         byte[] response = this.getSocket.recv(0); // "topic : message"
 
         if(response == null) {
-            System.out.println("Failed to receive a message for topic '" + topic + "'.");
+            System.out.println("Failed to receive a message for topic: '" + topic + "'.");
             return;
         }
 
@@ -186,7 +187,7 @@ public class Subscriber implements SubscriberInterface {
                     System.out.println("Client " + id + " asked for a topic ('" + topic + "') that doesn't exist.");
                     break;
                 case "GET_EMPTY":
-                    System.out.println("Client " + id + " asked for a topic ('" + topic + "') that doesn't messages yet.");
+                    System.out.println("Client " + id + " asked for a topic ('" + topic + "') that doesn't have messages yet.");
                     break;
             }
         }

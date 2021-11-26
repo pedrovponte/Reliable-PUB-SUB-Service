@@ -105,6 +105,8 @@ public class Topic implements Serializable {
         this.subsLastMessageIds.remove(Integer.valueOf(lastSendMessageId));
         this.subsLastMessageIds.add(lastSendMessageId + 1);
 
-        this.removeMessage();
+        if(this.messages.size() > 1){
+            this.removeMessage();
+        }
     }
 }

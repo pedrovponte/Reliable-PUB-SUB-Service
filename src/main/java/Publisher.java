@@ -41,13 +41,13 @@ public class Publisher implements PublisherInterface {
 
         switch(reply) {
             case "PUT_ACK_SUCC":
-                System.out.println("Message added successfully to topic " + topic);
+                System.out.println("Message added successfully to topic: " + topic);
                 break;
             case "PUT_ACK_DENY":
-                System.out.println("There is no one subscribed to topic " + topic + ". Message discarded");
+                System.out.println("There is no one subscribed to topic: " + topic + ". Message discarded");
                 break;
             case "PUT_NACK":
-                System.out.println("Failed to add message to topic " + topic);
+                System.out.println("Failed to add message to topic: " + topic);
                 break;
         }
     }
